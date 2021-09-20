@@ -15,9 +15,6 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.SecretKeySpec;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  * This class was taken from the OpenHAB 1.x Buderus / KM200 binding, and
  * modified to run without the OpenHAB infrastructure. Not needed code was
@@ -31,8 +28,6 @@ import org.slf4j.LoggerFactory;
  */
 
 final class KM200Comm {
-
-    private static final Logger logger = LoggerFactory.getLogger(KM200Comm.class);
 
     /**
      * This function removes zero padding from a byte array.
@@ -67,8 +62,7 @@ final class KM200Comm {
         try {
             decodedB64 = getMimeDecoder().decode(encoded);
         } catch (Exception e) {
-            logger.error("Message is not in valid Base64 scheme: {}", e);
-            e.printStackTrace();
+            throw new KM200Exception("Message is not in valid Base64 scheme", e);
         }
         try {
             /* Check whether the length of the decryptData is NOT multiplies of 16 */
@@ -87,8 +81,7 @@ final class KM200Comm {
         } catch (BadPaddingException | IllegalBlockSizeException | UnsupportedEncodingException
                 | NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException e) {
             // failure to authenticate
-            logger.error("Exception on encoding: {}", e);
-            return null;
+            throw new KM200Exception("Exception on encoding", e);
         }
     }
 
@@ -100,21 +93,16 @@ final class KM200Comm {
             byte[] bdata = data.getBytes(device.getCharSet());
             final Cipher cipher = Cipher.getInstance("AES/ECB/NoPadding");
             cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(device.getCryptKeyPriv(), "AES"));
-            logger.debug("Create padding..");
             int bsize = cipher.getBlockSize();
-            logger.debug("Add Padding and Encrypt AES..");
             final byte[] encryptedData = cipher.doFinal(addZeroPadding(bdata, bsize, device.getCharSet()));
-            logger.debug("Encrypt B64..");
             try {
                 encryptedDataB64 = getEncoder().encode(encryptedData);
             } catch (Exception e) {
-                logger.error("Base64encoding not possible: {}", e.getMessage());
             }
             return encryptedDataB64;
         } catch (UnsupportedEncodingException | GeneralSecurityException e) {
             // failure to authenticate
-            logger.error("Exception on encoding: {}", e);
-            return null;
+            throw new KM200Exception("Exception on encoding", e);
         }
     }
 }

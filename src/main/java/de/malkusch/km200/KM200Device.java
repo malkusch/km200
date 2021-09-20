@@ -19,9 +19,6 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import jakarta.xml.bind.DatatypeConverter;
 
 /**
@@ -35,8 +32,6 @@ import jakarta.xml.bind.DatatypeConverter;
  */
 
 final class KM200Device {
-
-    private static final Logger logger = LoggerFactory.getLogger(KM200Device.class);
 
     /* valid IPv4 address of the KMxxx. */
     protected String ip4Address = null;
@@ -89,8 +84,7 @@ final class KM200Device {
             try {
                 md = MessageDigest.getInstance("MD5");
             } catch (NoSuchAlgorithmException e) {
-                logger.error("No such algorithm: 'MD5'. Please check Java installation.");
-                return;
+                throw new IllegalStateException("No such algorithm: 'MD5'. Please check Java installation.");
             }
 
             /* First half of the key: MD5 of (GatewayPassword . Salt) */
