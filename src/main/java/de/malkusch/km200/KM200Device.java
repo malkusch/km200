@@ -19,10 +19,10 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.xml.bind.DatatypeConverter;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import jakarta.xml.bind.DatatypeConverter;
 
 /**
  * This class was taken from the OpenHAB 1.x Buderus / KM200 binding, and
