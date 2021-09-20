@@ -20,8 +20,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import lombok.Value;
-
 // See https://github.com/hlipka/buderus2mqtt
 // See https://github.com/openhab/openhab1-addons/tree/master/bundles/binding/org.openhab.binding.km200
 public final class KM200 {
@@ -65,9 +63,7 @@ public final class KM200 {
         query("/system");
     }
 
-    @Value
-    private static class UpdateString {
-        public final String value;
+    private static record UpdateString(String value) {
     }
 
     public void update(String path, String value) throws KM200Exception, IOException, InterruptedException {
@@ -81,9 +77,7 @@ public final class KM200 {
         update(path, time.format(DATE_TIME_FORMATTER));
     }
 
-    @Value
-    private static class UpdateFloat {
-        public final BigDecimal value;
+    private static record UpdateFloat(BigDecimal value) {
     }
 
     public void update(String path, int value) throws KM200Exception, IOException, InterruptedException {
