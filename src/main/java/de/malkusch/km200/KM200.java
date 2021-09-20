@@ -29,7 +29,6 @@ public final class KM200 {
     private final ObjectMapper mapper = new ObjectMapper();
     private final HttpClient http;
     private final Duration timeout;
-    private static final String USER_AGENT = "TeleHeater/2.2.3";
 
     private static void assertNotBlank(String var, String message) {
         if (requireNonNull(var).isBlank()) {
@@ -144,6 +143,8 @@ public final class KM200 {
             throw new KM200Exception("Could not parse JSON from query " + path, e);
         }
     }
+
+    private static final String USER_AGENT = "TeleHeater/2.2.3";
 
     private HttpRequest.Builder request(String path) {
         var uri = URI.create("http://" + device.getIP4Address() + path);

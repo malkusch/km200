@@ -19,7 +19,8 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 
-import jakarta.xml.bind.DatatypeConverter;
+import org.apache.commons.codec.DecoderException;
+import org.apache.commons.codec.binary.Hex;
 
 /**
  * This class was taken from the OpenHAB 1.x Buderus / KM200 binding, and
@@ -148,12 +149,20 @@ final class KM200Device {
     }
 
     public void setMD5Salt(String salt) {
-        MD5Salt = DatatypeConverter.parseHexBinary(salt);
+        MD5Salt = decodeHex(salt);
         RecreateKeys();
     }
 
     public void setCryptKeyPriv(String key) {
-        cryptKeyPriv = DatatypeConverter.parseHexBinary(key);
+        cryptKeyPriv = decodeHex(key);
+    }
+
+    private static byte[] decodeHex(String hex) {
+        try {
+            return Hex.decodeHex(hex);
+        } catch (DecoderException e) {
+            throw new IllegalArgumentException(e);
+        }
     }
 
     public void setCharSet(String charset) {
