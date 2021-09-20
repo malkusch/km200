@@ -229,7 +229,7 @@ final class KM200Comm {
     /**
      * This function checks the capabilities of a service on the device
      */
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings("removal")
     public void initObjects(KM200Device device, String service) {
         String id = null, type = null, decodedData = null;
         Integer writeable = 0;

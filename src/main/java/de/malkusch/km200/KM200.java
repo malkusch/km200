@@ -7,7 +7,6 @@ import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.params.HttpClientParams;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.Value;
@@ -18,6 +17,8 @@ public final class KM200 {
 
     private final KM200Device device;
     private final KM200Comm comm;
+
+    @Deprecated
     private final ObjectMapper mapper = new ObjectMapper();
 
     public KM200(String host, Duration timeout, String gatewayPassword, String privatePassword, String salt) {
@@ -94,7 +95,7 @@ public final class KM200 {
         }
     }
 
-    public JsonNode query(String path) throws KM200Exception {
+    public String query(String path) throws KM200Exception {
         var encrypted = comm.getDataFromService(device, path);
         if (encrypted == null) {
             throw new KM200Exception("No response when querying " + path);
@@ -103,12 +104,6 @@ public final class KM200 {
         if (decrypted == null) {
             throw new KM200Exception("Could not decrypt query " + path);
         }
-
-        try {
-            return mapper.readTree(decrypted);
-
-        } catch (JsonProcessingException e) {
-            throw new KM200Exception("Failed to query " + path + ": " + decrypted, e);
-        }
+        return decrypted;
     }
 }
