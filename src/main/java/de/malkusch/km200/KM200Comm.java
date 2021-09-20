@@ -38,8 +38,6 @@ import org.apache.commons.httpclient.params.HttpMethodParams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.io.ByteStreams;
-
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -113,7 +111,7 @@ final class KM200Comm {
             }
             device.setCharSet(method.getResponseCharSet());
             // Read the response body.
-            responseBodyB64 = ByteStreams.toByteArray(method.getResponseBodyAsStream());
+            responseBodyB64 = method.getResponseBody();
 
         } catch (HttpException e) {
             logger.error("Fatal protocol violation: ", e);
