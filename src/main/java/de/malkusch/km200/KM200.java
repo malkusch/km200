@@ -4,6 +4,8 @@ import static java.util.Objects.requireNonNull;
 
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.params.HttpClientParams;
@@ -37,7 +39,7 @@ public final class KM200 {
         assertNotBlank(salt, "salt must not be blank");
 
         var device = new KM200Device();
-        // device.setCharSet("UTF-8");
+        device.setCharSet("UTF-8");
         device.setGatewayPassword(gatewayPassword.replace("-", ""));
         device.setPrivatePassword(privatePassword);
         device.setIP4Address(host);
@@ -62,6 +64,12 @@ public final class KM200 {
     public void update(String path, String value) throws KM200Exception {
         var update = new UpdateString(value);
         update(path, update);
+    }
+
+    private static DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+
+    public void update(String path, LocalDateTime time) throws KM200Exception {
+        update(path, time.format(DATE_TIME_FORMATTER));
     }
 
     @Value
@@ -118,5 +126,10 @@ public final class KM200 {
     public double queryDouble(String path) throws KM200Exception {
         var json = queryJson(path);
         return json.get("value").asDouble();
+    }
+
+    public String queryString(String path) throws KM200Exception {
+        var json = queryJson(path);
+        return json.get("value").asText();
     }
 }
