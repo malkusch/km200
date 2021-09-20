@@ -33,7 +33,7 @@ public final class KM200 {
 
         var httpParams = new HttpClientParams();
         httpParams.setConnectionManagerTimeout(timeout.toMillis());
-        httpParams.setConnectionManagerTimeout(timeout.toMillis());
+        httpParams.setSoTimeout((int) timeout.toMillis());
         var http = new HttpClient(httpParams);
         var comm = new KM200Comm(http);
         comm.getDataFromService(device, "/system");
