@@ -59,7 +59,8 @@ public final class KM200 {
 
         this.comm = new KM200Comm();
         this.timeout = timeout;
-        http = newBuilder().connectTimeout(timeout).cookieHandler(new CookieManager()).followRedirects(ALWAYS).build();
+        this.http = newBuilder().connectTimeout(timeout).cookieHandler(new CookieManager()).followRedirects(ALWAYS)
+                .build();
 
         query("/system");
     }
@@ -132,14 +133,6 @@ public final class KM200 {
         return decrypted;
     }
 
-    private JsonNode queryJson(String path) throws KM200Exception, IOException, InterruptedException {
-        try {
-            return mapper.readTree(query(path));
-        } catch (JsonProcessingException e) {
-            throw new KM200Exception("Could not parse JSON from query " + path, e);
-        }
-    }
-
     public double queryDouble(String path) throws KM200Exception, IOException, InterruptedException {
         var json = queryJson(path);
         return json.get("value").asDouble();
@@ -148,6 +141,14 @@ public final class KM200 {
     public String queryString(String path) throws KM200Exception, IOException, InterruptedException {
         var json = queryJson(path);
         return json.get("value").asText();
+    }
+
+    private JsonNode queryJson(String path) throws KM200Exception, IOException, InterruptedException {
+        try {
+            return mapper.readTree(query(path));
+        } catch (JsonProcessingException e) {
+            throw new KM200Exception("Could not parse JSON from query " + path, e);
+        }
     }
 
     private HttpRequest.Builder request(String path) {
