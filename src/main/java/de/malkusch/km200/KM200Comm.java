@@ -1,19 +1,5 @@
 package de.malkusch.km200;
 
-/**
- * Copyright (c) 2010-2020 Contributors to the openHAB project
- * <p>
- * See the NOTICE file(s) distributed with this work for additional
- * information.
- * <p>
- * This program and the accompanying materials are made available under the
- * terms of the Eclipse Public License 2.0 which is available at
- * http://www.eclipse.org/legal/epl-2.0
- * <p>
- * SPDX-License-Identifier: EPL-2.0
- */
-
-import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.security.GeneralSecurityException;
 import java.security.InvalidKeyException;
@@ -27,18 +13,8 @@ import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.apache.commons.codec.binary.Base64;
-import org.apache.commons.httpclient.DefaultHttpMethodRetryHandler;
-import org.apache.commons.httpclient.HttpClient;
-import org.apache.commons.httpclient.HttpException;
-import org.apache.commons.httpclient.HttpStatus;
-import org.apache.commons.httpclient.methods.ByteArrayRequestEntity;
-import org.apache.commons.httpclient.methods.GetMethod;
-import org.apache.commons.httpclient.methods.PostMethod;
-import org.apache.commons.httpclient.params.HttpMethodParams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import lombok.RequiredArgsConstructor;
 
 /**
  * This class was taken from the OpenHAB 1.x Buderus / KM200 binding, and
@@ -52,11 +28,9 @@ import lombok.RequiredArgsConstructor;
  * @since 1.9.0
  */
 
-@RequiredArgsConstructor
 final class KM200Comm {
 
     private static final Logger logger = LoggerFactory.getLogger(KM200Comm.class);
-    private final HttpClient client;
 
     /**
      * This function removes zero padding from a byte array.
@@ -79,83 +53,6 @@ final class KM200Comm {
         System.arraycopy(bdata, 0, padded_data, 0, bdata.length);
         System.arraycopy(padchars, 0, padded_data, bdata.length, padchars.length);
         return padded_data;
-    }
-
-    /**
-     * This function does the GET http communication to the device
-     */
-    public byte[] getDataFromService(KM200Device device, String service) {
-        byte[] responseBodyB64 = null;
-
-        // Create a method instance.
-        GetMethod method = new GetMethod("http://" + device.getIP4Address() + service);
-
-        // Provide custom retry handler is necessary
-        method.getParams().setParameter(HttpMethodParams.RETRY_HANDLER, new DefaultHttpMethodRetryHandler(3, false));
-        // Set the right header
-        method.setRequestHeader("Accept", "application/json");
-        method.addRequestHeader("User-Agent", "TeleHeater/2.2.3");
-
-        try {
-            // Execute the method.
-            int statusCode = client.executeMethod(method);
-            // Check the status and the forbidden 403 Error.
-            if (statusCode != HttpStatus.SC_OK) {
-                String statusLine = method.getStatusLine().toString();
-                if (statusLine.contains(" 403 ")) {
-                    return new byte[1];
-                } else {
-                    logger.error("HTTP GET failed: {}", method.getStatusLine());
-                    return null;
-                }
-            }
-            device.setCharSet(method.getResponseCharSet());
-            // Read the response body.
-            responseBodyB64 = method.getResponseBody();
-
-        } catch (HttpException e) {
-            logger.error("Fatal protocol violation: ", e);
-        } catch (IOException e) {
-            logger.error("Fatal transport error: ", e);
-        } finally {
-            // Release the connection.
-            method.releaseConnection();
-        }
-        return responseBodyB64;
-    }
-
-    /**
-     * This function does the SEND http communication to the device
-     *
-     */
-    public Integer sendDataToService(KM200Device device, String service, byte[] data) {
-        // Create an instance of HttpClient.
-        Integer rCode = null;
-        synchronized (client) {
-
-            // Create a method instance.
-            PostMethod method = new PostMethod("http://" + device.getIP4Address() + service);
-
-            // Provide custom retry handler is necessary
-            method.getParams().setParameter(HttpMethodParams.RETRY_HANDLER,
-                    new DefaultHttpMethodRetryHandler(3, false));
-            // Set the right header
-            method.setRequestHeader("Accept", "application/json");
-            method.addRequestHeader("User-Agent", "TeleHeater/2.2.3");
-            method.setRequestEntity(new ByteArrayRequestEntity(data));
-
-            try {
-                rCode = client.executeMethod(method);
-
-            } catch (Exception e) {
-                logger.error("Failed to send data {}", e);
-
-            } finally {
-                // Release the connection.
-                method.releaseConnection();
-            }
-            return rCode;
-        }
     }
 
     /**
