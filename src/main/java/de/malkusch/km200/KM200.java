@@ -1,5 +1,7 @@
 package de.malkusch.km200;
 
+import static java.util.Objects.requireNonNull;
+
 import java.math.BigDecimal;
 import java.time.Duration;
 
@@ -7,6 +9,7 @@ import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.params.HttpClientParams;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.Value;
@@ -17,11 +20,21 @@ public final class KM200 {
 
     private final KM200Device device;
     private final KM200Comm comm;
-
-    @Deprecated
     private final ObjectMapper mapper = new ObjectMapper();
 
+    private static void assertNotBlank(String var, String message) {
+        if (requireNonNull(var).isBlank()) {
+            throw new IllegalArgumentException(message);
+        }
+    }
+
     public KM200(String host, Duration timeout, String gatewayPassword, String privatePassword, String salt) {
+
+        assertNotBlank(host, "host must not be blank");
+        requireNonNull(timeout);
+        assertNotBlank(gatewayPassword, "gatewayPassword must not be blank");
+        assertNotBlank(privatePassword, "privatePassword must not be blank");
+        assertNotBlank(salt, "salt must not be blank");
 
         var device = new KM200Device();
         // device.setCharSet("UTF-8");
@@ -39,19 +52,6 @@ public final class KM200 {
         var comm = new KM200Comm(http);
         comm.getDataFromService(device, "/system");
         this.comm = comm;
-    }
-
-    public void listURIs() {
-        comm.initObjects(device, "/system");
-        comm.initObjects(device, "/dhwCircuits");
-        comm.initObjects(device, "/gateway");
-        comm.initObjects(device, "/heatingCircuits");
-        comm.initObjects(device, "/heatSources");
-        comm.initObjects(device, "/notifications");
-        comm.initObjects(device, "/recordings");
-        comm.initObjects(device, "/solarCircuits");
-
-        device.listAllServices();
     }
 
     @Value
@@ -105,5 +105,18 @@ public final class KM200 {
             throw new KM200Exception("Could not decrypt query " + path);
         }
         return decrypted;
+    }
+
+    private JsonNode queryJson(String path) {
+        try {
+            return mapper.readTree(query(path));
+        } catch (JsonProcessingException e) {
+            throw new KM200Exception("Could not parse JSON from query " + path, e);
+        }
+    }
+
+    public double queryDouble(String path) throws KM200Exception {
+        var json = queryJson(path);
+        return json.get("value").asDouble();
     }
 }

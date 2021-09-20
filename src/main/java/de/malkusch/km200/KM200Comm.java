@@ -18,9 +18,7 @@ import java.io.UnsupportedEncodingException;
 import java.security.GeneralSecurityException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -37,9 +35,6 @@ import org.apache.commons.httpclient.methods.ByteArrayRequestEntity;
 import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.httpclient.methods.PostMethod;
 import org.apache.commons.httpclient.params.HttpMethodParams;
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -223,152 +218,6 @@ final class KM200Comm {
             // failure to authenticate
             logger.error("Exception on encoding: {}", e);
             return null;
-        }
-    }
-
-    /**
-     * This function checks the capabilities of a service on the device
-     */
-    @SuppressWarnings("removal")
-    public void initObjects(KM200Device device, String service) {
-        String id = null, type = null, decodedData = null;
-        Integer writeable = 0;
-        Integer recordable = 0;
-        JSONObject nodeRoot = null;
-        KM200CommObject newObject = null;
-        logger.debug("Init: {}", service);
-        if (device.blacklistMap.contains(service)) {
-            logger.debug("Service on blacklist: {}", service);
-            return;
-        }
-        byte[] recData = getDataFromService(device, service.toString());
-        try {
-            if (recData == null) {
-                throw new RuntimeException("Communication is not possible!");
-            }
-            if (recData.length == 0) {
-                throw new RuntimeException("No reply from KM200!");
-            }
-            /* Look whether the communication was forbidden */
-            if (recData.length == 1) {
-                newObject = new KM200CommObject(service, "", 0, 0, 0);
-                device.serviceMap.put(service, newObject);
-                return;
-            }
-            decodedData = decodeMessage(device, recData);
-            if (decodedData == null) {
-                throw new RuntimeException("Decoding of the KM200 message is not possible!");
-            }
-            if (decodedData.length() > 0) {
-                nodeRoot = new JSONObject(decodedData);
-                type = nodeRoot.getString("type");
-                id = nodeRoot.getString("id");
-            } else {
-                logger.error("Get empty reply");
-                return;
-            }
-
-            /* Check the service features and set the flags */
-            if (nodeRoot.has("writeable")) {
-                Integer val = nodeRoot.getInt("writeable");
-                logger.debug(val.toString());
-                writeable = val;
-            }
-            if (nodeRoot.has("recordable")) {
-                Integer val = nodeRoot.getInt("recordable");
-                logger.debug(val.toString());
-                recordable = val;
-            }
-            logger.debug("Typ: {}", type);
-
-            newObject = new KM200CommObject(id, type, writeable, recordable);
-
-            /* Check whether the type is a single value containing a string value */
-            if (type.equals("stringValue")) {
-                Object valObject = null;
-                logger.debug("initDevice: type string value: {}", decodedData.toString());
-                valObject = new String(nodeRoot.getString("value"));
-                newObject.setValue(valObject);
-                if (nodeRoot.has("allowedValues")) {
-                    List<String> valParas = new ArrayList<String>();
-                    JSONArray paras = nodeRoot.getJSONArray("allowedValues");
-                    for (int i = 0; i < paras.length(); i++) {
-                        String subJSON = (String) paras.get(i);
-                        valParas.add(subJSON);
-                    }
-                    newObject.setValueParameter(valParas);
-                }
-                device.serviceMap.put(id, newObject);
-
-            } else if (type
-                    .equals("floatValue")) { /* Check whether the type is a single value containing a float value */
-                Object valObject = null;
-                logger.debug("initDevice: type float value: {}", decodedData.toString());
-                valObject = new Float(nodeRoot.getDouble("value"));
-                newObject.setValue(valObject);
-                if (nodeRoot.has("minValue") && nodeRoot.has("maxValue")) {
-                    List<Float> valParas = new ArrayList<Float>();
-                    valParas.add(new Float(nodeRoot.getDouble("minValue")));
-                    valParas.add(new Float(nodeRoot.getDouble("maxValue")));
-                    newObject.setValueParameter(valParas);
-                }
-                device.serviceMap.put(id, newObject);
-
-            } else if (type.equals("switchProgram")) { /* Check whether the type is a switchProgram */
-                logger.debug("initDevice: type switchProgram {}", decodedData.toString());
-                newObject.setValue(decodedData.toString());
-                device.serviceMap.put(id, newObject);
-                /* have to be completed */
-
-            } else if (type.equals("errorList")) { /* Check whether the type is a errorList */
-                logger.debug("initDevice: type errorList: {}", decodedData.toString());
-                JSONArray errorValues = nodeRoot.getJSONArray("values");
-                newObject.setValue(errorValues);
-                /* have to be completed */
-
-            } else if (type.equals("refEnum")) { /* Check whether the type is a refEnum */
-                logger.debug("initDevice: type refEnum: {}", decodedData.toString());
-                device.serviceMap.put(id, newObject);
-                JSONArray refers = nodeRoot.getJSONArray("references");
-                for (int i = 0; i < refers.length(); i++) {
-                    JSONObject subJSON = refers.getJSONObject(i);
-                    id = subJSON.getString("id");
-                    initObjects(device, id);
-                }
-
-            } else if (type.equals("moduleList")) { /* Check whether the type is a moduleList */
-                logger.debug("initDevice: type moduleList: {}", decodedData.toString());
-                device.serviceMap.put(id, newObject);
-                JSONArray vals = nodeRoot.getJSONArray("values");
-                for (int i = 0; i < vals.length(); i++) {
-                    JSONObject subJSON = vals.getJSONObject(i);
-                    id = subJSON.getString("id");
-                    initObjects(device, id);
-                }
-
-            } else if (type.equals("yRecording")) { /* Check whether the type is a yRecording */
-                logger.debug("initDevice: type yRecording: {}", decodedData.toString());
-                device.serviceMap.put(id, newObject);
-                /* have to be completed */
-
-            } else if (type.equals("systeminfo")) { /* Check whether the type is a systeminfo */
-                logger.debug("initDevice: type systeminfo: {}", decodedData.toString());
-                JSONArray sInfo = nodeRoot.getJSONArray("values");
-                newObject.setValue(sInfo);
-                device.serviceMap.put(id, newObject);
-                /* have to be completed */
-
-            } else { /* Unknown type */
-                logger.info("initDevice: type unknown for service: {}",
-                        service.toString() + "Data:" + decodedData.toString());
-                newObject.setValue(decodedData);
-                device.serviceMap.put(id, newObject);
-            }
-        } catch (
-
-        JSONException e) {
-            logger.error("Parsingexception in JSON: {} data: {}", e, decodedData);
-            e.printStackTrace();
         }
     }
 }
