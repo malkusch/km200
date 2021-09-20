@@ -1,5 +1,8 @@
 package de.malkusch.km200;
 
+import static java.util.Base64.getEncoder;
+import static java.util.Base64.getMimeDecoder;
+
 import java.io.UnsupportedEncodingException;
 import java.security.GeneralSecurityException;
 import java.security.InvalidKeyException;
@@ -12,7 +15,6 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.SecretKeySpec;
 
-import org.apache.commons.codec.binary.Base64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,7 +65,7 @@ final class KM200Comm {
         byte[] decodedB64 = null;
 
         try {
-            decodedB64 = Base64.decodeBase64(encoded);
+            decodedB64 = getMimeDecoder().decode(encoded);
         } catch (Exception e) {
             logger.error("Message is not in valid Base64 scheme: {}", e);
             e.printStackTrace();
@@ -104,7 +106,7 @@ final class KM200Comm {
             final byte[] encryptedData = cipher.doFinal(addZeroPadding(bdata, bsize, device.getCharSet()));
             logger.debug("Encrypt B64..");
             try {
-                encryptedDataB64 = Base64.encodeBase64(encryptedData);
+                encryptedDataB64 = getEncoder().encode(encryptedData);
             } catch (Exception e) {
                 logger.error("Base64encoding not possible: {}", e.getMessage());
             }
