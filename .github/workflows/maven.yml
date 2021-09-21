@@ -12,5 +12,9 @@ jobs:
           java-version: '16'
           distribution: 'adopt'
       - name: Build with Maven
+        env:
+          GATEWAY_PASSWORD: ${{ secrets.GATEWAY_PASSWORD }}
+          PRIVATE_PASSWORD: ${{ secrets.PRIVATE_PASSWORD }}
+          SALT: ${{ secrets.SALT }}
         run: mvn --batch-mode --update-snapshots verify
 
