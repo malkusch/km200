@@ -44,27 +44,33 @@ are writeable (e.g. "/gateway/DateTime") which you can update with this library 
 
 Setup a KM200 instance:
 
-    var uri = "http://192.168.0.44";
-    var gatewayPassword = "1234-5678-90ab-cdef";
-    var privatePassword = "secretExample";
-    var timeout = Duration.ofSeconds(5);
-    var salt = "1234567890aabbccddeeff11223344556677889900aabbccddeeffa0a1a2b2d3";
-    
-    var km200 = new KM200(uri, timeout, gatewayPassword, privatePassword, salt);
-    
+```java
+var uri = "http://192.168.0.44";
+var gatewayPassword = "1234-5678-90ab-cdef";
+var privatePassword = "secretExample";
+var timeout = Duration.ofSeconds(5);
+var salt = "1234567890aabbccddeeff11223344556677889900aabbccddeeffa0a1a2b2d3";
+
+var km200 = new KM200(uri, timeout, gatewayPassword, privatePassword, salt);
+```
+
 Read and update the heater's time:
-    
-    // Read the heater's time
-    var time = km200.queryString("/gateway/DateTime");
-    System.out.println(time);
-    
-    // Update the heater's time
-    km200.update("/gateway/DateTime", LocalDateTime.now());
-    
+
+```java
+// Read the heater's time
+var time = km200.queryString("/gateway/DateTime");
+System.out.println(time);
+
+// Update the heater's time
+km200.update("/gateway/DateTime", LocalDateTime.now());
+```
+
 Explore all endpoints:
 
-    var tree = km200.tree();
-    tree.traverse().forEach(System.out::println);
+```java
+var tree = km200.tree();
+tree.traverse().forEach(System.out::println);
+```
 
 ### Thread safety
 
