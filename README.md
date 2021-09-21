@@ -33,9 +33,11 @@ where you could find the salt:
 
 ## Usage
 
-### Thread safety
+With this library you can access well known endpoints of your KM200 (e.g. "/gateway/DateTime" for your heater's time).
+The list of endpoints varies between installations, therefore you have to explore your KM200 yourself. Some endpoints
+are writeable (e.g. "/gateway/DateTime") which you can update with this library as well.
 
-Code wise the API is thread safe, however your KM200 itself might not be. I did observe issues when querying my KM200 concurrently. It performed badly and with errors. It is advised to use this API not concurrently.
+TODO code to explore all endpoints.
 
 ### Example
 
@@ -44,7 +46,7 @@ Code wise the API is thread safe, however your KM200 itself might not be. I did 
     var privatePassword = "secretExample";
     var timeout = Duration.ofSeconds(5);
     var salt = "1234567890aabbccddeeff11223344556677889900aabbccddeeffa0a1a2b2d3";
-    km200 = new KM200(uri, timeout, gatewayPassword, privatePassword, salt);
+    var km200 = new KM200(uri, timeout, gatewayPassword, privatePassword, salt);
     
     // Read the heater's time
     var time = km200.queryString("/gateway/DateTime");
@@ -52,6 +54,10 @@ Code wise the API is thread safe, however your KM200 itself might not be. I did 
     
     // Update the heater's time
     km200.update("/gateway/DateTime", LocalDateTime.now());
+
+### Thread safety
+
+Code wise the API is thread safe, however your KM200 itself might not be. I did observe issues when querying my KM200 concurrently. It performed badly and with errors. It is advised to use this API not concurrently.
 
 ## License
 
