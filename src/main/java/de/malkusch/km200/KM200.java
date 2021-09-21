@@ -155,6 +155,11 @@ public final class KM200 {
     }
 
     public String query(String path) throws KM200Exception, IOException, InterruptedException {
+        assertNotBlank(path, "Path must not be blank");
+        if (!path.startsWith("/")) {
+            throw new IllegalArgumentException("Path must start with a leading /");
+        }
+
         var request = request(path).GET().build();
         var response = http.send(request, BodyHandlers.ofByteArray());
 
