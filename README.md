@@ -24,9 +24,9 @@ The gateway password is constant and needs to be read out from the menu of your 
 ### Salt
 
 I didn't include the salt, because I remember slightly reading somewhere else that Bosch might step in
-legally to prevent the publication. So you will have to find the salt on your on, either by searching the internet
+legally to prevent the publication. So you will have to find the salt on your own, either by searching the internet
 or decompiling the [app](https://play.google.com/store/apps/details?id=com.bosch.tt.buderus).
-The format is the hexadecimal representation (e.g. "12a0b2…"). Here's an incomplete list of projects in the internet
+The format is the hexadecimal representation (e.g. `12a0b2…`). Here's an incomplete list of projects in the internet
 where you could find the salt:
 
 - [ioBroker.km200](https://github.com/frankjoke/ioBroker.km200/blob/6c0963d671b50cb73f378049448a42cf22a8fecf/km200.js#L13-L17)
@@ -36,9 +36,9 @@ where you could find the salt:
 
 ## Usage
 
-With this library you can access well known endpoints of your KM200 (e.g. "/gateway/DateTime" for your heater's time).
+With this library you can access well known endpoints of your KM200 (e.g. `/gateway/DateTime` for your heater's time).
 The list of endpoints varies between installations, therefore you have to explore your KM200 yourself. Some endpoints
-are writeable (e.g. "/gateway/DateTime") which you can update with this library as well.
+are writeable (e.g. `/gateway/DateTime`) which you can update with this library as well.
 
 ### Examples
 
