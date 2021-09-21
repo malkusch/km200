@@ -59,6 +59,10 @@ public final class KM200 {
      * 
      * // Update the heater's time
      * km200.update("/gateway/DateTime", LocalDateTime.now());
+     * 
+     * // Explore the heater's endpoints
+     * var tree = km200.tree();
+     * tree.traverse().forEach(System.out::println);
      * }
      * </pre>
      * 
