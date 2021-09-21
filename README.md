@@ -1,6 +1,8 @@
 # KM200 Java API
 
-This is a Java API for Bosch/Buderus/Junkers heaters with a KM200 gateway.
+This is a Java API for heaters with a KM200 gateway.
+Heaters of theses brands may use this gateway (according to `/system/brand`):
+Bosch, Junkers, Buderus, Nefit, Sieger, Tata, Dakon, Elm, Boulter, Vulcano, Worcester, British Gas, IVT, Geminox, Neckar, Zeus, Milton
 
 ## TODO Maven
 

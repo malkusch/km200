@@ -6,7 +6,7 @@
 	<artifactId>km200</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>KM200</name>
-	<description>Buderus KM200 API</description>
+	<description>KM200 API</description>
 
 	<properties>
 		<maven.compiler.source>16</maven.compiler.source>
