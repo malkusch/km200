@@ -52,11 +52,14 @@ public record KM200Tree(List<Node> roots) {
         private final boolean writeable;
         private final boolean recordable;
         private final String value;
+        private final String allowedValues;
 
-        Value(String path, String type, String value, boolean writeable, boolean recordable, String body) {
+        Value(String path, String type, String value, String allowedValues, boolean writeable, boolean recordable,
+                String body) {
             super(path, type);
             this.body = body;
             this.value = value;
+            this.allowedValues = allowedValues;
             this.writeable = writeable;
             this.recordable = recordable;
         }
@@ -66,13 +69,28 @@ public record KM200Tree(List<Node> roots) {
             var writeable = this.writeable ? "w" : "";
             var recordable = this.recordable ? "r" : "";
             var flags = writeable + recordable;
-            return String.format("%s[%s]: %s", super.toString(), flags, value);
+            var allowed = allowedValues != null ? allowedValues : "";
+            return String.format("%s[%s]: %s %s", super.toString(), flags, value, allowed);
         }
     }
 
     public static class ForbiddenNode extends Node {
         ForbiddenNode(String path) {
             super(path, "Forbidden");
+        }
+    }
+
+    public static class UnknownNode extends Node {
+        private final String value;
+
+        UnknownNode(String path, String type, String value) {
+            super(path, type);
+            this.value = value;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s [UNKNOWN]: %s", super.toString(), value);
         }
     }
 
@@ -96,7 +114,7 @@ public record KM200Tree(List<Node> roots) {
             try {
                 var response = km200.query(path);
                 if (path.equals("/gateway/firmware")) {
-                    return new Value(path, "firmware", "firmware", false, false, "firmware");
+                    return new Value(path, "firmware", "firmware", null, false, false, "firmware");
                 }
                 var json = mapper.readTree(response);
                 var type = json.path("type").asText();
@@ -120,7 +138,12 @@ public record KM200Tree(List<Node> roots) {
                         value = json.toString();
                     }
 
-                    return new Value(path, type, value, writeable, recordable, json.toString());
+                    String allowedValues = null;
+                    if (json.has("allowedValues")) {
+                        allowedValues = json.get("allowedValues").toString();
+                    }
+
+                    return new Value(path, type, value, allowedValues, writeable, recordable, json.toString());
 
                 case "refEnum":
                     var children = new ArrayList<Node>();
@@ -130,7 +153,7 @@ public record KM200Tree(List<Node> roots) {
                     return new RefEnum(path, children);
 
                 default:
-                    throw new IllegalStateException("Unknown type " + type + ": " + json);
+                    return new UnknownNode(path, type, json.toString());
                 }
             } catch (Forbidden e) {
                 return new ForbiddenNode(path);
