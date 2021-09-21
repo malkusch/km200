@@ -29,6 +29,7 @@ public final class KM200 {
     private final ObjectMapper mapper = new ObjectMapper();
     private final HttpClient http;
     private final Duration timeout;
+    private final String uri;
 
     private static void assertNotBlank(String var, String message) {
         if (requireNonNull(var).isBlank()) {
@@ -36,10 +37,10 @@ public final class KM200 {
         }
     }
 
-    public KM200(String host, Duration timeout, String gatewayPassword, String privatePassword, String salt)
+    public KM200(String uri, Duration timeout, String gatewayPassword, String privatePassword, String salt)
             throws KM200Exception, IOException, InterruptedException {
 
-        assertNotBlank(host, "host must not be blank");
+        assertNotBlank(uri, "uri must not be blank");
         requireNonNull(timeout);
         assertNotBlank(gatewayPassword, "gatewayPassword must not be blank");
         assertNotBlank(privatePassword, "privatePassword must not be blank");
@@ -49,13 +50,14 @@ public final class KM200 {
         device.setCharSet("UTF-8");
         device.setGatewayPassword(gatewayPassword.replace("-", ""));
         device.setPrivatePassword(privatePassword);
-        device.setIP4Address(host);
+        device.setIP4Address(uri);
         device.setMD5Salt(salt);
         device.setInited(true);
         this.device = device;
 
         this.comm = new KM200Comm();
         this.timeout = timeout;
+        this.uri = uri.replaceAll("/*$", "");
         this.http = newBuilder().connectTimeout(timeout).cookieHandler(new CookieManager()).followRedirects(ALWAYS)
                 .build();
 
@@ -111,7 +113,13 @@ public final class KM200 {
     public String query(String path) throws KM200Exception, IOException, InterruptedException {
         var request = request(path).GET().build();
         var response = http.send(request, BodyHandlers.ofByteArray());
-        if (response.statusCode() != 200) {
+
+        switch (response.statusCode()) {
+        case 200:
+            break;
+        case 404:
+            throw new KM200Exception.NotFound("Query " + path + " was not found");
+        default:
             throw new KM200Exception("Query " + path + " failed with response code " + response.statusCode());
         }
 
@@ -144,11 +152,10 @@ public final class KM200 {
         }
     }
 
-    private static final String USER_AGENT = "TeleHeater/2.2.3";
+    static final String USER_AGENT = "TeleHeater/2.2.3";
 
     private HttpRequest.Builder request(String path) {
-        var uri = URI.create("http://" + device.getIP4Address() + path);
-        return HttpRequest.newBuilder(uri) //
+        return HttpRequest.newBuilder(URI.create(uri + path)) //
                 .setHeader("User-Agent", USER_AGENT) //
                 .setHeader("Accept", "application/json") //
                 .timeout(timeout);
