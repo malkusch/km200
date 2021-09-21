@@ -166,6 +166,8 @@ public final class KM200 {
         switch (response.statusCode()) {
         case 200:
             break;
+        case 403:
+            throw new KM200Exception.Forbidden("Query " + path + " is forbidden");
         case 404:
             throw new KM200Exception.NotFound("Query " + path + " was not found");
         default:
