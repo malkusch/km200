@@ -30,6 +30,7 @@ where you could find the salt:
 - [ioBroker.km200](https://github.com/frankjoke/ioBroker.km200/blob/6c0963d671b50cb73f378049448a42cf22a8fecf/km200.js#L13-L17)
 - [bosch-thermostat-http-client-python](https://github.com/moustic999/bosch-thermostat-http-client-python/blob/53b2469988c7b25688501669df0981f03a2cbcfa/bosch_thermostat_http/const.py#L5)
 - [IPSymconBuderusKM200](https://github.com/demel42/IPSymconBuderusKM200/blob/a71ecedccf8781b607d47692e6c6ebc22a9d1aa3/BuderusKM200/module.php#L683-L686)
+- [km200exporter](https://github.com/dirklausen/km200exporter/blob/976344b8f1bec476f25ca1e5619faff12fdccd1d/km200exporter.py#L20)
 
 ## Usage
 
