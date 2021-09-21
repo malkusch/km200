@@ -4,7 +4,26 @@ This is a Java API for heaters with a KM200 gateway.
 Heaters of theses brands may use this gateway (according to `/system/brand`):
 Bosch, Junkers, Buderus, Nefit, Sieger, Tata, Dakon, Elm, Boulter, Vulcano, Worcester, British Gas, IVT, Geminox, Neckar, Zeus, Milton
 
-## TODO Maven
+## Maven
+
+For now use [JitPack](https://jitpack.io):
+
+```xml
+<repositories>
+	<repository>
+	    <id>jitpack.io</id>
+	    <url>https://jitpack.io</url>
+	</repository>
+</repositories>
+```
+
+```xml
+<dependency>
+    <groupId>com.github.malkusch</groupId>
+    <artifactId>km200</artifactId>
+    <version>1.0.0</version>
+</dependency>
+```
 
 ## Configuration
 
