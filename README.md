@@ -46,6 +46,7 @@ TODO code to explore all endpoints.
     var privatePassword = "secretExample";
     var timeout = Duration.ofSeconds(5);
     var salt = "1234567890aabbccddeeff11223344556677889900aabbccddeeffa0a1a2b2d3";
+    
     var km200 = new KM200(uri, timeout, gatewayPassword, privatePassword, salt);
     
     // Read the heater's time

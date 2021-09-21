@@ -42,6 +42,26 @@ public final class KM200 {
      * This will also issue a silent query to /system to verify that you
      * configuration is correct.
      * 
+     * Example:
+     * <pre>
+     * {@code
+     * var uri = "http://192.168.0.44";
+     * var gatewayPassword = "1234-5678-90ab-cdef";
+     * var privatePassword = "secretExample";
+     * var timeout = Duration.ofSeconds(5);
+     * var salt = "1234567890aabbccddeeff11223344556677889900aabbccddeeffa0a1a2b2d3";
+     * 
+     * var km200 = new KM200(uri, timeout, gatewayPassword, privatePassword, salt);
+     * 
+     * // Read the heater's time
+     * var time = km200.queryString("/gateway/DateTime");
+     * System.out.println(time);
+     * 
+     * // Update the heater's time
+     * km200.update("/gateway/DateTime", LocalDateTime.now());
+     * }
+     * </pre>
+     * 
      * @param uri
      *            The base URI of your KM200 e.g. http://192.168.0.44
      * @param timeout
