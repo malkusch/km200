@@ -6,24 +6,7 @@ Bosch, Junkers, Buderus, Nefit, Sieger, Tata, Dakon, Elm, Boulter, Vulcano, Worc
 
 ## Maven
 
-For now use [JitPack](https://jitpack.io):
-
-```xml
-<repositories>
-	<repository>
-		<id>jitpack.io</id>
-		<url>https://jitpack.io</url>
-	</repository>
-</repositories>
-```
-
-```xml
-<dependency>
-	<groupId>com.github.malkusch</groupId>
-	<artifactId>km200</artifactId>
-	<version>1.0.6</version>
-</dependency>
-```
+For now use [JitPack](https://jitpack.io/#malkusch/km200).
 
 ## Configuration
 
