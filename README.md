@@ -34,6 +34,8 @@ where you could find the salt:
 - [IPSymconBuderusKM200](https://github.com/demel42/IPSymconBuderusKM200/blob/a71ecedccf8781b607d47692e6c6ebc22a9d1aa3/BuderusKM200/module.php#L683-L686)
 - [km200exporter](https://github.com/dirklausen/km200exporter/blob/976344b8f1bec476f25ca1e5619faff12fdccd1d/km200exporter.py#L20)
 
+Additionally I found [this project](https://github.com/bosch-thermostat/bosch-thermostat-client-python/tree/b82b6c46468a647ddf1a2cada38146db8e5ff14f/bosch_thermostat_client/const) which seems to use different salts, depending on the heater's brand.
+
 ## Usage
 
 With this library you can access well known endpoints of your KM200 (e.g. `/gateway/DateTime` for your heater's time).
