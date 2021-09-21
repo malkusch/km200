@@ -40,9 +40,9 @@ With this library you can access well known endpoints of your KM200 (e.g. "/gate
 The list of endpoints varies between installations, therefore you have to explore your KM200 yourself. Some endpoints
 are writeable (e.g. "/gateway/DateTime") which you can update with this library as well.
 
-TODO code to explore all endpoints.
+### Examples
 
-### Example
+Setup a KM200 instance:
 
     var uri = "http://192.168.0.44";
     var gatewayPassword = "1234-5678-90ab-cdef";
@@ -52,12 +52,19 @@ TODO code to explore all endpoints.
     
     var km200 = new KM200(uri, timeout, gatewayPassword, privatePassword, salt);
     
+Read and update the heater's time:
+    
     // Read the heater's time
     var time = km200.queryString("/gateway/DateTime");
     System.out.println(time);
     
     // Update the heater's time
     km200.update("/gateway/DateTime", LocalDateTime.now());
+    
+Explore all endpoints:
+
+    var tree = km200.tree();
+    tree.traverse().forEach(System.out::println);
 
 ### Thread safety
 

@@ -108,6 +108,11 @@ public final class KM200 {
         query("/system");
     }
 
+    public KM200Tree tree() throws KM200Exception, IOException, InterruptedException {
+        var factory = new KM200Tree.Factory(this, mapper);
+        return factory.build();
+    }
+
     private static record UpdateString(String value) {
     }
 
@@ -181,6 +186,15 @@ public final class KM200 {
         var decrypted = comm.decodeMessage(device, encrypted);
         if (decrypted == null) {
             throw new KM200Exception("Could not decrypt query " + path);
+        }
+        if (path.equals("/gateway/firmware")) {
+            return decrypted;
+        } else {
+            if (!decrypted.startsWith("{")) {
+                throw new KM200Exception(
+                        String.format("Could not decrypt query %s. Body was:\n%s\n\n Decrypted was:\n%s", path,
+                                encrypted, decrypted));
+            }
         }
         return decrypted;
     }
