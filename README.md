@@ -48,5 +48,5 @@ legally to prevent the publication. So you will have to find the salt on your on
 
 # License
 
-The encryption and decryption was extracted from the OpenHAB project which itself is under the 
+The encryption and decryption was extracted from the [OpenHAB](https://github.com/openhab/openhab1-addons/tree/v1.10.0/bundles/binding/org.openhab.binding.km200/src/main/java/org/openhab/binding/km200/internal) project which itself is under the 
 Eclipse Public License 2.0. For simplicity I chose to use the same license for this project.
