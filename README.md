@@ -21,7 +21,7 @@ For now use [JitPack](https://jitpack.io):
 <dependency>
 	<groupId>com.github.malkusch</groupId>
 	<artifactId>km200</artifactId>
-	<version>1.0.0</version>
+	<version>1.0.6</version>
 </dependency>
 ```
 
