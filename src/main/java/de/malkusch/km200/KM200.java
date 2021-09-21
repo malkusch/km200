@@ -20,8 +20,13 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-// See https://github.com/hlipka/buderus2mqtt
-// See https://github.com/openhab/openhab1-addons/tree/master/bundles/binding/org.openhab.binding.km200
+/**
+ * This is an API for Bosch/Buderus/Junkers heaters with a KM200 gateway.
+ * 
+ * Although code wise this class is thread safe, it is highly recommended to not
+ * use it concurrently. Chances are that your KM200 gateway itself is not thread
+ * safe.
+ */
 public final class KM200 {
 
     private final KM200Device device;
@@ -31,12 +36,31 @@ public final class KM200 {
     private final Duration timeout;
     private final String uri;
 
-    private static void assertNotBlank(String var, String message) {
-        if (requireNonNull(var).isBlank()) {
-            throw new IllegalArgumentException(message);
-        }
-    }
-
+    /**
+     * Configure the KM200 API.
+     * 
+     * This will also issue a silent query to /system to verify that you
+     * configuration is correct.
+     * 
+     * @param uri
+     *            The base URI of your KM200 e.g. http://192.168.0.44
+     * @param timeout
+     *            An IO timeout for requests to your heater
+     * @param gatewayPassword
+     *            The constant gateway password which you need to read out from
+     *            your heater's display e.g. 1234-5678-90ab-cdef
+     * @param privatePassword
+     *            The private password which you did assign in the app. If you
+     *            forgot your private password you can start the "reset internet
+     *            password" flow in the menu of your heater and then reassign a
+     *            new passwort in the app.
+     * @param salt
+     *            The salt in the hexadecimal representation e.g. "12a0b2…"
+     * 
+     * @throws KM200Exception
+     * @throws IOException
+     * @throws InterruptedException
+     */
     public KM200(String uri, Duration timeout, String gatewayPassword, String privatePassword, String salt)
             throws KM200Exception, IOException, InterruptedException {
 
@@ -159,5 +183,11 @@ public final class KM200 {
                 .setHeader("User-Agent", USER_AGENT) //
                 .setHeader("Accept", "application/json") //
                 .timeout(timeout);
+    }
+
+    private static void assertNotBlank(String var, String message) {
+        if (requireNonNull(var).isBlank()) {
+            throw new IllegalArgumentException(message);
+        }
     }
 }

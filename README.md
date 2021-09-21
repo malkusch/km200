@@ -2,8 +2,6 @@
 
 This is a Java API for Bosch/Buderus/Junkers heaters with a KM200 gateway.
 
-# Usage
-
 ## TODO Maven
 
 ## Configuration
@@ -33,7 +31,13 @@ where you could find the salt:
 - [bosch-thermostat-http-client-python](https://github.com/moustic999/bosch-thermostat-http-client-python/blob/53b2469988c7b25688501669df0981f03a2cbcfa/bosch_thermostat_http/const.py#L5)
 - [IPSymconBuderusKM200](https://github.com/demel42/IPSymconBuderusKM200/blob/a71ecedccf8781b607d47692e6c6ebc22a9d1aa3/BuderusKM200/module.php#L683-L686)
 
-## Example
+## Usage
+
+### Thread safety
+
+Code wise the API is thread safe, however your KM200 itself might not be. I did observe issues when querying my KM200 concurrently. It performed badly and with errors. It is advised to use this API not concurrently.
+
+### Example
 
     var uri = "http://192.168.0.44";
     var gatewayPassword = "1234-5678-90ab-cdef";
@@ -49,7 +53,7 @@ where you could find the salt:
     // Update the heater's time
     km200.update("/gateway/DateTime", LocalDateTime.now());
 
-# License
+## License
 
 The encryption and decryption was extracted from the [OpenHAB](https://github.com/openhab/openhab1-addons/tree/v1.10.0/bundles/binding/org.openhab.binding.km200/src/main/java/org/openhab/binding/km200/internal) project which itself is under the 
 Eclipse Public License 2.0. For simplicity I chose to use the same license for this project.
