@@ -115,6 +115,14 @@ public class KM200Test {
         assertThrows(KM200Exception.class, () -> km200.queryString("/server-error"));
     }
 
+    @Test
+    public void shouldFailOnLocked() throws Exception {
+        stubFor(post("/locked").willReturn(status(423)));
+        var km200 = new KM200(URI, TIMEOUT, GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
+
+        assertThrows(KM200Exception.Locked.class, () -> km200.update("/locked", 42));
+    }
+
     private static String loadBody(String path) throws IOException {
         return resourceToString(path, UTF_8, KM200Test.class.getClassLoader());
     }

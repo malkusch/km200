@@ -158,6 +158,10 @@ public final class KM200 {
         var response = http.send(request, BodyHandlers.ofString());
 
         if (!(response.statusCode() >= 200 && response.statusCode() < 300)) {
+            if (response.statusCode() == 423) {
+                throw new KM200Exception.Locked(
+                        String.format("Failed to update %s with %s", path, json));
+            }
             throw new KM200Exception(
                     String.format("Failed to update %s [%d]: %s", path, response.statusCode(), response.body()));
         }
