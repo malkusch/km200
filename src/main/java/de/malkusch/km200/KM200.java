@@ -11,6 +11,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
+import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -19,6 +20,11 @@ import java.time.format.DateTimeFormatter;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import net.jodah.failsafe.Failsafe;
+import net.jodah.failsafe.FailsafeException;
+import net.jodah.failsafe.FailsafeExecutor;
+import net.jodah.failsafe.RetryPolicy;
 
 /**
  * This is an API for Bosch/Buderus/Junkers heaters with a KM200 gateway.
@@ -35,6 +41,7 @@ public final class KM200 {
     private final HttpClient http;
     private final Duration timeout;
     private final String uri;
+    private final FailsafeExecutor<HttpResponse<byte[]>> retry;
 
     /**
      * Configure the KM200 API.
@@ -109,6 +116,13 @@ public final class KM200 {
         this.http = newBuilder().connectTimeout(timeout).cookieHandler(new CookieManager()).followRedirects(ALWAYS)
                 .build();
 
+        {
+            var policy = new RetryPolicy<HttpResponse<byte[]>>();
+            policy.handle(IOException.class);
+            policy.withMaxRetries(3);
+            retry = Failsafe.with(policy);
+        }
+
         query("/system");
     }
 
@@ -159,8 +173,7 @@ public final class KM200 {
 
         if (!(response.statusCode() >= 200 && response.statusCode() < 300)) {
             if (response.statusCode() == 423) {
-                throw new KM200Exception.Locked(
-                        String.format("Failed to update %s with %s", path, json));
+                throw new KM200Exception.Locked(String.format("Failed to update %s with %s", path, json));
             }
             throw new KM200Exception(
                     String.format("Failed to update %s [%d]: %s", path, response.statusCode(), response.body()));
@@ -173,20 +186,7 @@ public final class KM200 {
             throw new IllegalArgumentException("Path must start with a leading /");
         }
 
-        var request = request(path).GET().build();
-        var response = http.send(request, BodyHandlers.ofByteArray());
-
-        switch (response.statusCode()) {
-        case 200:
-            break;
-        case 403:
-            throw new KM200Exception.Forbidden("Query " + path + " is forbidden");
-        case 404:
-            throw new KM200Exception.NotFound("Query " + path + " was not found");
-        default:
-            throw new KM200Exception("Query " + path + " failed with response code " + response.statusCode());
-        }
-
+        var response = get(path);
         var encrypted = response.body();
         if (encrypted == null) {
             throw new KM200Exception("No response when querying " + path);
@@ -205,6 +205,38 @@ public final class KM200 {
             }
         }
         return decrypted;
+    }
+
+    private HttpResponse<byte[]> get(String path) throws IOException, InterruptedException {
+        var request = request(path).GET().build();
+
+        HttpResponse<byte[]> response;
+        try {
+            response = retry.get(() -> http.send(request, BodyHandlers.ofByteArray()));
+        } catch (FailsafeException e) {
+            var cause = e.getCause();
+            if (cause instanceof IOException) {
+                throw (IOException) cause;
+
+            } else if (cause instanceof InterruptedException) {
+                throw (InterruptedException) cause;
+
+            } else {
+                throw e;
+            }
+        }
+
+        switch (response.statusCode()) {
+        case 200:
+            break;
+        case 403:
+            throw new KM200Exception.Forbidden("Query " + path + " is forbidden");
+        case 404:
+            throw new KM200Exception.NotFound("Query " + path + " was not found");
+        default:
+            throw new KM200Exception("Query " + path + " failed with response code " + response.statusCode());
+        }
+        return response;
     }
 
     public double queryDouble(String path) throws KM200Exception, IOException, InterruptedException {

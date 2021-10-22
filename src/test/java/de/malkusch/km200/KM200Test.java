@@ -13,6 +13,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.status;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.verify;
+import static com.github.tomakehurst.wiremock.stubbing.Scenario.STARTED;
 import static de.malkusch.km200.KM200.USER_AGENT;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.commons.io.IOUtils.resourceToString;
@@ -20,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.IOException;
+import java.net.http.HttpTimeoutException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 
@@ -121,6 +123,27 @@ public class KM200Test {
         var km200 = new KM200(URI, TIMEOUT, GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
 
         assertThrows(KM200Exception.Locked.class, () -> km200.update("/locked", 42));
+    }
+
+    @Test
+    public void shouldTimeout() throws Exception {
+        stubFor(get("/timeout").willReturn(ok(loadBody("gateway.DateTime")).withFixedDelay(100)));
+        var km200 = new KM200(URI, Duration.ofMillis(50), GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
+
+        assertThrows(HttpTimeoutException.class, () -> km200.query("/timeout"));
+    }
+
+    @Test
+    public void shouldRetryOnTimeout() throws Exception {
+        stubFor(get("/retry").inScenario("retry").whenScenarioStateIs(STARTED)
+                .willReturn(notFound().withFixedDelay(100)).willSetStateTo("retry"));
+        stubFor(get("/retry").inScenario("retry").whenScenarioStateIs("retry")
+                .willReturn(ok(loadBody("gateway.DateTime"))));
+        var km200 = new KM200(URI, Duration.ofMillis(50), GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
+
+        var dateTime = km200.queryString("/retry");
+
+        assertEquals("2021-09-21T10:49:25", dateTime);
     }
 
     private static String loadBody(String path) throws IOException {
