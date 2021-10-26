@@ -244,6 +244,11 @@ public final class KM200 {
         return json.get("value").asDouble();
     }
 
+    public BigDecimal queryBigDecimal(String path) throws KM200Exception, IOException, InterruptedException {
+        var json = queryJson(path);
+        return json.get("value").decimalValue();
+    }
+
     public String queryString(String path) throws KM200Exception, IOException, InterruptedException {
         var json = queryJson(path);
         return json.get("value").asText();
