@@ -21,10 +21,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import net.jodah.failsafe.Failsafe;
-import net.jodah.failsafe.FailsafeException;
-import net.jodah.failsafe.FailsafeExecutor;
-import net.jodah.failsafe.RetryPolicy;
+import dev.failsafe.Failsafe;
+import dev.failsafe.FailsafeException;
+import dev.failsafe.FailsafeExecutor;
+import dev.failsafe.RetryPolicy;
 
 /**
  * This is an API for Bosch/Buderus/Junkers heaters with a KM200 gateway.
@@ -116,12 +116,8 @@ public final class KM200 {
         this.http = newBuilder().connectTimeout(timeout).cookieHandler(new CookieManager()).followRedirects(ALWAYS)
                 .build();
 
-        {
-            var policy = new RetryPolicy<HttpResponse<byte[]>>();
-            policy.handle(IOException.class);
-            policy.withMaxRetries(3);
-            retry = Failsafe.with(policy);
-        }
+        retry = Failsafe
+                .with(RetryPolicy.<HttpResponse<byte[]>> builder().handle(IOException.class).withMaxRetries(3).build());
 
         query("/system");
     }
