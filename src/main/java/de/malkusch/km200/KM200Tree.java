@@ -96,7 +96,7 @@ public record KM200Tree(List<Node> roots) {
 
     static record Factory(KM200 km200, ObjectMapper mapper) {
 
-        private static String[] WELL_KNOWN_ROOTS = { "/system", "/dhwCircuits", "/gateway", "/heatingCircuits",
+        private static final String[] WELL_KNOWN_ROOTS = { "/system", "/dhwCircuits", "/gateway", "/heatingCircuits",
                 "/heatSources", "/notifications", "/recordings", "/solarCircuits" };
 
         public KM200Tree build() throws KM200Exception, IOException, InterruptedException {

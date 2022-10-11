@@ -135,7 +135,7 @@ public final class KM200 {
         update(path, update);
     }
 
-    private static DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
 
     public void update(String path, LocalDateTime time) throws KM200Exception, IOException, InterruptedException {
         update(path, time.format(DATE_TIME_FORMATTER));
