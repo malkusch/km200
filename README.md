@@ -6,7 +6,13 @@ Bosch, Junkers, Buderus, Nefit, Sieger, Tata, Dakon, Elm, Boulter, Vulcano, Worc
 
 ## Maven
 
-For now use [JitPack](https://jitpack.io/#malkusch/km200).
+This package is available in Maven central:
+
+<dependency>
+    <groupId>de.malkusch.km200</groupId>
+    <artifactId>km200</artifactId>
+    <version>1.2.3</version>
+</dependency>
 
 ## Configuration
 
