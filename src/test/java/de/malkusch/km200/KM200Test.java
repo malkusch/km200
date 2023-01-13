@@ -32,16 +32,12 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import com.github.tomakehurst.wiremock.junit5.WireMockTest;
 
-/**
- * To run these tests please provide the environment variables GATEWAY_PASSWORD,
- * PRIVATE_PASSWORD and SALT.
- */
 @WireMockTest(httpPort = KM200Test.PORT)
 public class KM200Test {
 
-    private static final String GATEWAY_PASSWORD = System.getenv("GATEWAY_PASSWORD");
-    private static final String PRIVATE_PASSWORD = System.getenv("PRIVATE_PASSWORD");
-    private static final String SALT = System.getenv("SALT");
+    private static final String GATEWAY_PASSWORD = "aaaa-bbbb-cccc-dddd";
+    private static final String PRIVATE_PASSWORD = "secret1";
+    private static final String SALT = "abababababababababababababababababababababababababababababababab";
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
     static final int PORT = 8080;
     private static final String URI = "http://localhost:" + PORT;
@@ -90,7 +86,7 @@ public class KM200Test {
         km200.update("/gateway/DateTime", LocalDateTime.parse("2021-09-21T10:49:25"));
 
         verify(postRequestedFor(urlEqualTo("/gateway/DateTime"))
-                .withRequestBody(equalTo("jAsP208ITkn75xLI/WdARyIzbymlclVS92SvScEVkh4=")));
+                .withRequestBody(equalTo("5xIVJSMa037r4XkbMhFnkgKrnu4nsjb9+oeBkEwVIj8=")));
     }
 
     @Test
