@@ -224,17 +224,12 @@ public final class KM200 {
             }
         }
 
-        switch (response.statusCode()) {
-        case 200:
-            break;
-        case 403:
-            throw new KM200Exception.Forbidden("Query " + path + " is forbidden");
-        case 404:
-            throw new KM200Exception.NotFound("Query " + path + " was not found");
-        default:
-            throw new KM200Exception("Query " + path + " failed with response code " + response.statusCode());
-        }
-        return response;
+        return switch (response.statusCode()) {
+        case 200 -> response;
+        case 403 -> throw new KM200Exception.Forbidden("Query " + path + " is forbidden");
+        case 404 -> throw new KM200Exception.NotFound("Query " + path + " was not found");
+        default -> throw new KM200Exception("Query " + path + " failed with response code " + response.statusCode());
+        };
     }
 
     public double queryDouble(String path) throws KM200Exception, IOException, InterruptedException {
