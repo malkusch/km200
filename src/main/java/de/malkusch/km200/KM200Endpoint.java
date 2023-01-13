@@ -118,14 +118,9 @@ public abstract class KM200Endpoint {
                 }
                 var json = mapper.readTree(response);
                 var type = json.path("type").asText();
-                switch (type) {
-                case "stringValue":
-                case "systeminfo":
-                case "floatValue":
-                case "arrayData":
-                case "switchProgram":
-                case "errorList":
-                case "yRecording":
+
+                return switch (type) {
+                case "stringValue", "systeminfo", "floatValue", "arrayData", "switchProgram", "errorList", "yRecording" -> {
                     var writeable = json.path("writeable").asBoolean(false);
                     var recordable = json.path("recordable").asBoolean(false);
 
@@ -143,18 +138,19 @@ public abstract class KM200Endpoint {
                         allowedValues = json.get("allowedValues").toString();
                     }
 
-                    return new Value(path, type, value, allowedValues, writeable, recordable, json.toString());
+                    yield new Value(path, type, value, allowedValues, writeable, recordable, json.toString());
+                }
 
-                case "refEnum":
+                case "refEnum" -> {
                     var children = new ArrayList<KM200Endpoint>();
                     for (var childJson : json.get("references")) {
                         children.add(traverse(childJson.get("id").asText()));
                     }
-                    return new RefEnum(path, children);
-
-                default:
-                    return new UnknownNode(path, type, json.toString());
+                    yield new RefEnum(path, children);
                 }
+
+                default -> new UnknownNode(path, type, json.toString());
+                };
             } catch (Forbidden e) {
                 return new ForbiddenNode(path);
             }
