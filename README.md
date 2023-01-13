@@ -11,7 +11,7 @@ This package is available in Maven central:
 <dependency>
     <groupId>de.malkusch.km200</groupId>
     <artifactId>km200</artifactId>
-    <version>1.2.3</version>
+    <version>2.0.0</version>
 </dependency>
 ```
 
