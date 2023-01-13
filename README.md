@@ -79,8 +79,7 @@ km200.update("/gateway/DateTime", LocalDateTime.now());
 Explore all endpoints:
 
 ```java
-var tree = km200.tree();
-tree.traverse().forEach(System.out::println);
+km200.endpoints().forEach(System.out::println);
 ```
 
 ### Thread safety

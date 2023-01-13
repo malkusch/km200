@@ -8,46 +8,31 @@ import java.util.stream.Stream;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import de.malkusch.km200.KM200Exception.Forbidden;
-import de.malkusch.km200.KM200Tree.Node;
 
-public record KM200Tree(List<Node> roots) {
+public abstract class KM200Endpoint {
+    private final String path;
+    private final String type;
 
-    public Stream<Node> traverse() {
-        return roots.stream().flatMap(KM200Tree::traverse);
+    KM200Endpoint(String path, String type) {
+        this.path = path;
+        this.type = type;
     }
 
-    private static Stream<Node> traverse(Node node) {
-        return switch (node.type) {
-        case "RefEnum" -> ((RefEnum) node).children.stream().flatMap(KM200Tree::traverse);
-        default -> Stream.of(node);
-        };
+    @Override
+    public String toString() {
+        return String.format("%s [%s]", path, type);
     }
 
-    public static abstract class Node {
-        private final String path;
-        private final String type;
+    public static class RefEnum extends KM200Endpoint {
+        private final List<KM200Endpoint> children;
 
-        Node(String path, String type) {
-            this.path = path;
-            this.type = type;
-        }
-
-        @Override
-        public String toString() {
-            return String.format("%s [%s]", path, type);
-        }
-    }
-
-    public static class RefEnum extends Node {
-        private final List<Node> children;
-
-        RefEnum(String path, List<Node> children) {
+        RefEnum(String path, List<KM200Endpoint> children) {
             super(path, "RefEnum");
             this.children = children;
         }
     }
 
-    public static class Value extends Node {
+    public static class Value extends KM200Endpoint {
         private final String body;
         private final boolean writeable;
         private final boolean recordable;
@@ -74,13 +59,13 @@ public record KM200Tree(List<Node> roots) {
         }
     }
 
-    public static class ForbiddenNode extends Node {
+    public static class ForbiddenNode extends KM200Endpoint {
         ForbiddenNode(String path) {
             super(path, "Forbidden");
         }
     }
 
-    public static class UnknownNode extends Node {
+    public static class UnknownNode extends KM200Endpoint {
         private final String value;
 
         UnknownNode(String path, String type, String value) {
@@ -96,18 +81,33 @@ public record KM200Tree(List<Node> roots) {
 
     static record Factory(KM200 km200, ObjectMapper mapper) {
 
-        private static final String[] WELL_KNOWN_ROOTS = { "/system", "/dhwCircuits", "/gateway", "/heatingCircuits",
-                "/heatSources", "/notifications", "/recordings", "/solarCircuits" };
+        private static final String[] WELL_KNOWN_ROOTS = { //
+                "/system", //
+                "/dhwCircuits", //
+                "/gateway", //
+                "/heatingCircuits", //
+                "/heatSources", //
+                "/notifications", //
+                "/recordings", //
+                "/solarCircuits" //
+        };
 
-        public KM200Tree build() throws KM200Exception, IOException, InterruptedException {
-            var roots = new ArrayList<Node>();
+        public Stream<KM200Endpoint> build() throws KM200Exception, IOException, InterruptedException {
+            var roots = new ArrayList<KM200Endpoint>();
             for (var path : WELL_KNOWN_ROOTS) {
                 roots.add(traverse(path));
             }
-            return new KM200Tree(roots);
+            return roots.stream().flatMap(Factory::traverse);
         }
 
-        private Node traverse(String path) throws InterruptedException, KM200Exception, IOException {
+        private static Stream<KM200Endpoint> traverse(KM200Endpoint node) {
+            return switch (node.type) {
+            case "RefEnum" -> ((RefEnum) node).children.stream().flatMap(Factory::traverse);
+            default -> Stream.of(node);
+            };
+        }
+
+        private KM200Endpoint traverse(String path) throws InterruptedException, KM200Exception, IOException {
             if (Thread.interrupted()) {
                 throw new InterruptedException("Exploring was interrupted");
             }
@@ -146,7 +146,7 @@ public record KM200Tree(List<Node> roots) {
                     return new Value(path, type, value, allowedValues, writeable, recordable, json.toString());
 
                 case "refEnum":
-                    var children = new ArrayList<Node>();
+                    var children = new ArrayList<KM200Endpoint>();
                     for (var childJson : json.get("references")) {
                         children.add(traverse(childJson.get("id").asText()));
                     }

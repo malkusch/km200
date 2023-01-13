@@ -16,6 +16,7 @@ import java.net.http.HttpResponse.BodyHandlers;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.stream.Stream;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -50,6 +51,7 @@ public final class KM200 {
      * configuration is correct.
      * 
      * Example:
+     * 
      * <pre>
      * {@code
      * var uri = "http://192.168.0.44";
@@ -68,8 +70,7 @@ public final class KM200 {
      * km200.update("/gateway/DateTime", LocalDateTime.now());
      * 
      * // Explore the heater's endpoints
-     * var tree = km200.tree();
-     * tree.traverse().forEach(System.out::println);
+     * km200.endpoints().forEach(System.out::println);
      * }
      * </pre>
      * 
@@ -122,9 +123,10 @@ public final class KM200 {
         query("/system");
     }
 
-    public KM200Tree tree() throws KM200Exception, IOException, InterruptedException {
-        var factory = new KM200Tree.Factory(this, mapper);
-        return factory.build();
+    private final KM200Endpoint.Factory endpointFactory = new KM200Endpoint.Factory(this, mapper);
+
+    public Stream<KM200Endpoint> endpoints() throws KM200Exception, IOException, InterruptedException {
+        return endpointFactory.build();
     }
 
     private static record UpdateString(String value) {
