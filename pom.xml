@@ -5,7 +5,6 @@
 	<version>2.0.1-SNAPSHOT</version>
 	<name>KM200</name>
 	<description>KM200 API</description>
-
 	<parent>
 		<groupId>de.malkusch.parent</groupId>
 		<artifactId>oss-parent</artifactId>
@@ -16,14 +15,12 @@
 		<connection>scm:git:git://github.com/malkusch/${project.artifactId}.git</connection>
 		<developerConnection>scm:git:git@github.com:malkusch/${project.artifactId}.git</developerConnection>
 	</scm>
-	
 	<properties>
 		<github.repository>malkusch/km200</github.repository>
 		<maven.compiler.source>16</maven.compiler.source>
 		<maven.compiler.target>16</maven.compiler.target>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
-
 	<dependencies>
 		<dependency>
 			<groupId>commons-codec</groupId>
@@ -40,7 +37,6 @@
 			<artifactId>failsafe</artifactId>
 			<version>3.3.0</version>
 		</dependency>
-
 		<dependency>
 			<groupId>org.junit.jupiter</groupId>
 			<artifactId>junit-jupiter</artifactId>
