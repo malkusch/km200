@@ -13,7 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-        # - uses: fregante/setup-git-user@v1
       - run: git config --global user.email "markus@malkusch.de"
       - run: git config --global user.name "Markus Malkusch"
       - name: Setup JDK
@@ -22,9 +21,6 @@ jobs:
           java-version: ${{ env.JDK }}
           distribution: 'adopt'
           cache: maven
-          server-id: sonatype-nexus-staging
-          server-username: MAVEN_USERNAME
-          server-password: MAVEN_PASSWORD
           gpg-private-key: ${{ secrets.MAVEN_GPG_PRIVATE }}
       - name: Prepare
         run: mvn --batch-mode release:prepare ${{ env.RELEASE_ARGS }} -DpushChanges=false
@@ -59,9 +55,5 @@ jobs:
         uses: actions/download-artifact@v3
         with:
             name: prepare
-
-      - run: ls target
-      - run: ls 
-
       - name: Release    
         run: mvn --batch-mode release:perform -DconnectionUrl=scm:git:${{ github.server_url }}/${{ github.repository }} ${{ env.RELEASE_ARGS }}
