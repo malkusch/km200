@@ -8,7 +8,7 @@ env:
   RELEASE_ARGS: -Darguments="-DskipTests -Dgpg.keyname=km200@malkusch.de -Dgpg.passphrase="
 
 jobs:
-  publish:
+  prepare:
     if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     steps:
@@ -28,11 +28,40 @@ jobs:
           gpg-private-key: ${{ secrets.MAVEN_GPG_PRIVATE }}
       - name: Prepare
         run: mvn --batch-mode release:prepare ${{ env.RELEASE_ARGS }} -DpushChanges=false
-
-      - run: false
-
       - name: Push
         run: git push
       - run: git push --tags
+      - name: Save target
+        uses: actions/upload-artifact@v3
+        with:
+          name: prepare
+          path: |
+            target
+            release.properties
+          retention-days: 7
+
+  release:
+    needs: [prepare]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: ${{ env.JDK }}
+          distribution: 'adopt'
+          cache: maven
+          server-id: sonatype-nexus-staging
+          server-username: MAVEN_USERNAME
+          server-password: MAVEN_PASSWORD
+          gpg-private-key: ${{ secrets.MAVEN_GPG_PRIVATE }}
+      - name: Restore target
+        uses: actions/download-artifact@v3
+        with:
+            name: prepare
+
+      - run: ls target
+      - run: ls 
+
       - name: Release    
         run: mvn --batch-mode release:perform -DconnectionUrl=scm:git:${{ github.server_url }}/${{ github.repository }} ${{ env.RELEASE_ARGS }}
