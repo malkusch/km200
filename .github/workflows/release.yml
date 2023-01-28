@@ -39,7 +39,7 @@ jobs:
           path: |
             target
             release.properties
-          retention-days: 7
+          retention-days: 1
 
   release:
     needs: [prepare]
