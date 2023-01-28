@@ -24,6 +24,7 @@ jobs:
       - name: Prepare
         run: mvn --batch-mode release:prepare -Darguments="-Dgpg.keyname=km200@malkusch.de -Dgpg.passphrase=" -DpushChanges=false
       - name: Push
-        run: git push --tags
+        run: git push
+      - run: git push --tags
       - name: Release    
         run: mvn --batch-mode release:perform -DconnectionUrl=scm:git:${{ github.server_url }}/${{ github.repository }} -Darguments="-Dgpg.keyname=km200@malkusch.de -Dgpg.passphrase="
