@@ -1,11 +1,16 @@
 name: Release
-on: [workflow_dispatch]
+on:
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        type: boolean
+        default: true
 
 env:
   MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
   MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
   JDK: 16
-  RELEASE_ARGS: -Darguments="-DskipTests -Dgpg.passphrase="
+  RELEASE_ARGS:  -DdryRun=${{ inputs.dry-run  }} -Darguments="-DskipTests -Dgpg.passphrase=" 
 
 jobs:
   prepare:
@@ -56,4 +61,5 @@ jobs:
         with:
             name: prepare
       - name: Release    
+        if: ${{ ! inputs.dry-run }}
         run: mvn --batch-mode release:perform -DconnectionUrl=scm:git:${{ github.server_url }}/${{ github.repository }} ${{ env.RELEASE_ARGS }}
