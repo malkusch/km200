@@ -12,7 +12,6 @@ jobs:
     uses: malkusch/github/.github/workflows/maven-central-release.yml@master
     with:
       dry-run: ${{ inputs.dry-run }}
-      MAVEN_SERVER_ID: sonatype-nexus-staging
     secrets:
       MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
       MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
