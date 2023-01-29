@@ -1,4 +1,5 @@
 name: Release
+
 on:
   workflow_dispatch:
     inputs:
@@ -6,60 +7,13 @@ on:
         type: boolean
         default: true
 
-env:
-  MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
-  MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
-  JDK: 16
-  RELEASE_ARGS:  -DdryRun=${{ inputs.dry-run  }} -Darguments="-DskipTests -Dgpg.passphrase=" 
-
 jobs:
-  prepare:
-    if: github.ref == 'refs/heads/master'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - run: git config --global user.email "${{ github.actor }}@github.com"
-      - run: git config --global user.name "${{ github.actor }}"
-      - name: Setup JDK
-        uses: actions/setup-java@v3
-        with:
-          java-version: ${{ env.JDK }}
-          distribution: 'adopt'
-          cache: maven
-          gpg-private-key: ${{ secrets.MAVEN_GPG_PRIVATE }}
-      - name: Prepare
-        run: mvn --batch-mode release:prepare ${{ env.RELEASE_ARGS }} -DpushChanges=false
-      - name: Push
-        run: git push
-      - run: git push --tags
-      - name: Save target
-        uses: actions/upload-artifact@v3
-        with:
-          name: prepare
-          path: |
-            target
-            release.properties
-          retention-days: 1
-
   release:
-    needs: [prepare]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Setup JDK
-        uses: actions/setup-java@v3
-        with:
-          java-version: ${{ env.JDK }}
-          distribution: 'adopt'
-          cache: maven
-          server-id: sonatype-nexus-staging
-          server-username: MAVEN_USERNAME
-          server-password: MAVEN_PASSWORD
-          gpg-private-key: ${{ secrets.MAVEN_GPG_PRIVATE }}
-      - name: Restore target
-        uses: actions/download-artifact@v3
-        with:
-            name: prepare
-      - name: Release    
-        if: ${{ ! inputs.dry-run }}
-        run: mvn --batch-mode release:perform -DconnectionUrl=scm:git:${{ github.server_url }}/${{ github.repository }} ${{ env.RELEASE_ARGS }}
+    if: github.ref == 'refs/heads/master'
+    uses: malkusch/github/.github/workflows/maven-central-release.yml@master
+    with:
+      dry-run: ${{ inputs.dry-run }}
+    secrets:
+      MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+      MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
+      MAVEN_GPG_PRIVATE: ${{ secrets.MAVEN_GPG_PRIVATE }}
