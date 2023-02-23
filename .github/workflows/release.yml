@@ -16,7 +16,6 @@ jobs:
     if: github.ref == 'refs/heads/master'
     uses: malkusch/github/.github/workflows/maven-central-release.yml@master
     with:
-      BUILD_TARGET: ${{ needs.build.outputs.target }}
       dry-run: ${{ inputs.dry-run }}
     secrets:
       MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
