@@ -17,6 +17,7 @@ jobs:
     uses: malkusch/github/.github/workflows/maven-central-release.yml@master
     with:
       dry-run: ${{ inputs.dry-run }}
+      JDK_VERSION: ${{ needs.build.outputs.JDK_VERSION }}
     secrets:
       MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
       MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
