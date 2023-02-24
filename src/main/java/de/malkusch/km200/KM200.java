@@ -122,6 +122,7 @@ public final class KM200 {
                 RetryPolicy.<HttpResponse<byte[]>> builder() //
                         .handle(IOException.class, ServerError.class) //
                         .withMaxRetries(3) //
+                        .withDelay(Duration.ofSeconds(1), Duration.ofSeconds(2)) //
                         .build());
 
         query("/system");

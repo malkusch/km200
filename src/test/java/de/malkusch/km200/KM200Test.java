@@ -16,15 +16,19 @@ import static com.github.tomakehurst.wiremock.client.WireMock.verify;
 import static com.github.tomakehurst.wiremock.stubbing.Scenario.STARTED;
 import static de.malkusch.km200.KM200.USER_AGENT;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.io.IOUtils.resourceToString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.net.http.HttpTimeoutException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 
+import org.apache.commons.lang3.time.StopWatch;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -150,7 +154,7 @@ public class KM200Test {
         assertEquals("2021-09-21T10:49:25", dateTime);
         verify(2, getRequestedFor(urlEqualTo("/retry")));
     }
-    
+
     @Test
     public void shouldRetryOnServerError() throws Exception {
         stubFor(get("/retry500").inScenario("retry500").whenScenarioStateIs(STARTED).willReturn(serverError())
@@ -167,6 +171,28 @@ public class KM200Test {
 
         assertEquals("2021-09-21T10:49:25", dateTime);
         verify(4, getRequestedFor(urlEqualTo("/retry500")));
+    }
+
+    @Test
+    public void shouldWaitWhenRetrying() throws Exception {
+        stubFor(get("/retry-wait").inScenario("retry-wait").whenScenarioStateIs(STARTED).willReturn(serverError())
+                .willSetStateTo("retry-wait2"));
+        stubFor(get("/retry-wait").inScenario("retry-wait").whenScenarioStateIs("retry-wait2").willReturn(serverError())
+                .willSetStateTo("retry-wait3"));
+        stubFor(get("/retry-wait").inScenario("retry-wait").whenScenarioStateIs("retry-wait3").willReturn(serverError())
+                .willSetStateTo("ok"));
+        stubFor(get("/retry-wait").inScenario("retry-wait").whenScenarioStateIs("ok")
+                .willReturn(ok(loadBody("gateway.DateTime"))));
+        var km200 = new KM200(URI, TIMEOUT, GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
+
+        var stopwatch = StopWatch.createStarted();
+        var dateTime = km200.queryString("/retry-wait");
+        stopwatch.stop();
+
+        var seconds = stopwatch.getTime(MILLISECONDS) / 1000.0;
+        assertTrue(seconds > 2, "The retry was to fast: " + seconds + " seconds");
+        assertEquals("2021-09-21T10:49:25", dateTime);
+        verify(4, getRequestedFor(urlEqualTo("/retry-wait")));
     }
 
     private static String loadBody(String path) throws IOException {
