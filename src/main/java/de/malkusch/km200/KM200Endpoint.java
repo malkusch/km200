@@ -92,8 +92,7 @@ public abstract class KM200Endpoint {
 
         public Stream<KM200Endpoint> build() {
             return stream(WELL_KNOWN_ROOTS) //
-                    .flatMap(this::traverse) //
-                    .sequential();
+                    .flatMap(this::traverse);
         }
 
         private static final Value FIRMWARE = new Value("/gateway/firmware", "firmware", "firmware", null, false, false,
