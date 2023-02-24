@@ -1,11 +1,13 @@
 package de.malkusch.km200;
 
+import static java.lang.Thread.currentThread;
 import static java.util.Arrays.stream;
 
 import java.io.IOException;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import de.malkusch.km200.KM200Exception.Forbidden;
@@ -17,6 +19,10 @@ public abstract class KM200Endpoint {
     KM200Endpoint(String path, String type) {
         this.path = path;
         this.type = type;
+    }
+
+    public String path() {
+        return path;
     }
 
     @Override
@@ -90,37 +96,25 @@ public abstract class KM200Endpoint {
                     .sequential();
         }
 
+        private static final Value FIRMWARE = new Value("/gateway/firmware", "firmware", "firmware", null, false, false,
+                "firmware");
+
         private Stream<KM200Endpoint> traverse(String path) throws KM200Exception {
+            if (path.equals(FIRMWARE.path())) {
+                return Stream.of(FIRMWARE);
+            }
+
             try {
                 var response = km200.query(path);
-                if (path.equals("/gateway/firmware")) {
-                    return Stream.of(new Value(path, "firmware", "firmware", null, false, false, "firmware"));
-                }
+
                 var json = mapper.readTree(response);
                 var type = json.path("type").asText();
 
                 return switch (type) {
-                case "stringValue", "systeminfo", "floatValue", "arrayData", "switchProgram", "errorList", "yRecording" -> {
-                    var writeable = json.path("writeable").asBoolean(false);
-                    var recordable = json.path("recordable").asBoolean(false);
 
-                    String value;
-                    if (json.has("value")) {
-                        value = json.get("value").asText();
-                    } else if (json.has("values")) {
-                        value = json.get("values").toString();
-                    } else {
-                        value = json.toString();
-                    }
-
-                    String allowedValues = null;
-                    if (json.has("allowedValues")) {
-                        allowedValues = json.get("allowedValues").toString();
-                    }
-
-                    yield Stream
-                            .of(new Value(path, type, value, allowedValues, writeable, recordable, json.toString()));
-                }
+                case "stringValue", "systeminfo", "floatValue", //
+                        "arrayData", "switchProgram", //
+                        "errorList", "yRecording" -> Stream.of(value(path, type, json));
 
                 case "refEnum" -> StreamSupport //
                         .stream(json.get("references").spliterator(), false) //
@@ -129,6 +123,7 @@ public abstract class KM200Endpoint {
 
                 default -> Stream.of(new UnknownNode(path, type, json.toString()));
                 };
+
             } catch (Forbidden e) {
                 return Stream.of(new ForbiddenNode(path));
 
@@ -136,8 +131,30 @@ public abstract class KM200Endpoint {
                 throw new KM200Exception("Traversing " + path + " failed", e);
 
             } catch (InterruptedException e) {
-                throw new KM200Exception("Traversing " + path + " was interrupted", e);
+                currentThread().interrupt();
+                return Stream.empty();
             }
+        }
+
+        private static Value value(String path, String type, JsonNode json) {
+            var writeable = json.path("writeable").asBoolean(false);
+            var recordable = json.path("recordable").asBoolean(false);
+
+            String value;
+            if (json.has("value")) {
+                value = json.get("value").asText();
+            } else if (json.has("values")) {
+                value = json.get("values").toString();
+            } else {
+                value = json.toString();
+            }
+
+            String allowedValues = null;
+            if (json.has("allowedValues")) {
+                allowedValues = json.get("allowedValues").toString();
+            }
+
+            return new Value(path, type, value, allowedValues, writeable, recordable, json.toString());
         }
     }
 }

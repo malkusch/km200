@@ -114,6 +114,14 @@ public class KM200Test {
     }
 
     @Test
+    public void shouldFailOnUnknownError() throws Exception {
+        stubFor(get("/unknown-error").willReturn(status(599)));
+        var km200 = new KM200(URI, TIMEOUT, GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
+
+        assertThrows(KM200Exception.class, () -> km200.queryString("/unknown-error"));
+    }
+
+    @Test
     public void shouldFailOnLocked() throws Exception {
         stubFor(post("/locked").willReturn(status(423)));
         var km200 = new KM200(URI, TIMEOUT, GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
@@ -145,8 +153,8 @@ public class KM200Test {
     @Test
     public void shouldRetryOnServerError() throws Exception {
         stubFor(get("/retry500").inScenario("retry500").whenScenarioStateIs(STARTED).willReturn(serverError())
-                .willSetStateTo("retry500"));
-        stubFor(get("/retry500").inScenario("retry500").whenScenarioStateIs("retry500")
+                .willSetStateTo("ok"));
+        stubFor(get("/retry500").inScenario("retry500").whenScenarioStateIs("ok")
                 .willReturn(ok(loadBody("gateway.DateTime"))));
         var km200 = new KM200(URI, TIMEOUT, GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
 
