@@ -148,11 +148,16 @@ public class KM200Test {
         var dateTime = km200.queryString("/retry");
 
         assertEquals("2021-09-21T10:49:25", dateTime);
+        verify(2, getRequestedFor(urlEqualTo("/retry")));
     }
-
+    
     @Test
     public void shouldRetryOnServerError() throws Exception {
         stubFor(get("/retry500").inScenario("retry500").whenScenarioStateIs(STARTED).willReturn(serverError())
+                .willSetStateTo("retry2"));
+        stubFor(get("/retry500").inScenario("retry500").whenScenarioStateIs("retry2").willReturn(serverError())
+                .willSetStateTo("retry3"));
+        stubFor(get("/retry500").inScenario("retry500").whenScenarioStateIs("retry3").willReturn(serverError())
                 .willSetStateTo("ok"));
         stubFor(get("/retry500").inScenario("retry500").whenScenarioStateIs("ok")
                 .willReturn(ok(loadBody("gateway.DateTime"))));
@@ -161,6 +166,7 @@ public class KM200Test {
         var dateTime = km200.queryString("/retry500");
 
         assertEquals("2021-09-21T10:49:25", dateTime);
+        verify(4, getRequestedFor(urlEqualTo("/retry500")));
     }
 
     private static String loadBody(String path) throws IOException {
