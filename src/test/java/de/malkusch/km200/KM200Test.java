@@ -110,7 +110,7 @@ public class KM200Test {
         stubFor(get("/server-error").willReturn(serverError()));
         var km200 = new KM200(URI, TIMEOUT, GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
 
-        assertThrows(KM200Exception.class, () -> km200.queryString("/server-error"));
+        assertThrows(KM200Exception.ServerError.class, () -> km200.queryString("/server-error"));
     }
 
     @Test
@@ -138,6 +138,19 @@ public class KM200Test {
         var km200 = new KM200(URI, Duration.ofMillis(50), GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
 
         var dateTime = km200.queryString("/retry");
+
+        assertEquals("2021-09-21T10:49:25", dateTime);
+    }
+
+    @Test
+    public void shouldRetryOnServerError() throws Exception {
+        stubFor(get("/retry500").inScenario("retry500").whenScenarioStateIs(STARTED).willReturn(serverError())
+                .willSetStateTo("retry500"));
+        stubFor(get("/retry500").inScenario("retry500").whenScenarioStateIs("retry500")
+                .willReturn(ok(loadBody("gateway.DateTime"))));
+        var km200 = new KM200(URI, TIMEOUT, GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
+
+        var dateTime = km200.queryString("/retry500");
 
         assertEquals("2021-09-21T10:49:25", dateTime);
     }

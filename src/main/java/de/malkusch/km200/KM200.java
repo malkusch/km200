@@ -22,6 +22,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import de.malkusch.km200.KM200Exception.ServerError;
 import dev.failsafe.Failsafe;
 import dev.failsafe.FailsafeException;
 import dev.failsafe.FailsafeExecutor;
@@ -117,8 +118,11 @@ public final class KM200 {
         this.http = newBuilder().connectTimeout(timeout).cookieHandler(new CookieManager()).followRedirects(ALWAYS)
                 .build();
 
-        retry = Failsafe
-                .with(RetryPolicy.<HttpResponse<byte[]>> builder().handle(IOException.class).withMaxRetries(3).build());
+        retry = Failsafe.with( //
+                RetryPolicy.<HttpResponse<byte[]>> builder() //
+                        .handle(IOException.class, ServerError.class) //
+                        .withMaxRetries(3) //
+                        .build());
 
         query("/system");
     }
@@ -206,11 +210,9 @@ public final class KM200 {
     }
 
     private HttpResponse<byte[]> get(String path) throws IOException, InterruptedException {
-        var request = request(path).GET().build();
-
-        HttpResponse<byte[]> response;
         try {
-            response = retry.get(() -> http.send(request, BodyHandlers.ofByteArray()));
+            return retry.get(() -> _get_unsafe(path));
+
         } catch (FailsafeException e) {
             var cause = e.getCause();
             if (cause instanceof IOException) {
@@ -219,15 +221,26 @@ public final class KM200 {
             } else if (cause instanceof InterruptedException) {
                 throw (InterruptedException) cause;
 
+            } else if (cause instanceof KM200Exception) {
+                throw (KM200Exception) cause;
+
             } else {
                 throw e;
             }
         }
+    }
+
+    private HttpResponse<byte[]> _get_unsafe(String path) throws IOException, InterruptedException {
+        var request = request(path).GET().build();
+
+        HttpResponse<byte[]> response;
+        response = http.send(request, BodyHandlers.ofByteArray());
 
         return switch (response.statusCode()) {
         case 200 -> response;
         case 403 -> throw new KM200Exception.Forbidden("Query " + path + " is forbidden");
         case 404 -> throw new KM200Exception.NotFound("Query " + path + " was not found");
+        case 500 -> throw new KM200Exception.ServerError("Query " + path + " resulted in a server error");
         default -> throw new KM200Exception("Query " + path + " failed with response code " + response.statusCode());
         };
     }

@@ -19,6 +19,14 @@ public class KM200Exception extends RuntimeException {
         }
     }
 
+    public static class ServerError extends KM200Exception {
+        private static final long serialVersionUID = -6497781961251724723L;
+
+        public ServerError(String message) {
+            super(message);
+        }
+    }
+
     public static class Forbidden extends KM200Exception {
         private static final long serialVersionUID = -6497781961251724723L;
 
