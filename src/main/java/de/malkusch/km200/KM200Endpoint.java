@@ -1,9 +1,10 @@
 package de.malkusch.km200;
 
+import static java.util.Arrays.stream;
+
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -21,15 +22,6 @@ public abstract class KM200Endpoint {
     @Override
     public String toString() {
         return String.format("%s [%s]", path, type);
-    }
-
-    public static class RefEnum extends KM200Endpoint {
-        private final List<KM200Endpoint> children;
-
-        RefEnum(String path, List<KM200Endpoint> children) {
-            super(path, "RefEnum");
-            this.children = children;
-        }
     }
 
     public static class Value extends KM200Endpoint {
@@ -92,29 +84,17 @@ public abstract class KM200Endpoint {
                 "/solarCircuits" //
         };
 
-        public Stream<KM200Endpoint> build() throws KM200Exception, IOException, InterruptedException {
-            var roots = new ArrayList<KM200Endpoint>();
-            for (var path : WELL_KNOWN_ROOTS) {
-                roots.add(traverse(path));
-            }
-            return roots.stream().flatMap(Factory::traverse);
+        public Stream<KM200Endpoint> build() {
+            return stream(WELL_KNOWN_ROOTS) //
+                    .flatMap(this::traverse) //
+                    .sequential();
         }
 
-        private static Stream<KM200Endpoint> traverse(KM200Endpoint node) {
-            return switch (node.type) {
-            case "RefEnum" -> ((RefEnum) node).children.stream().flatMap(Factory::traverse);
-            default -> Stream.of(node);
-            };
-        }
-
-        private KM200Endpoint traverse(String path) throws InterruptedException, KM200Exception, IOException {
-            if (Thread.interrupted()) {
-                throw new InterruptedException("Exploring was interrupted");
-            }
+        private Stream<KM200Endpoint> traverse(String path) throws KM200Exception {
             try {
                 var response = km200.query(path);
                 if (path.equals("/gateway/firmware")) {
-                    return new Value(path, "firmware", "firmware", null, false, false, "firmware");
+                    return Stream.of(new Value(path, "firmware", "firmware", null, false, false, "firmware"));
                 }
                 var json = mapper.readTree(response);
                 var type = json.path("type").asText();
@@ -138,21 +118,25 @@ public abstract class KM200Endpoint {
                         allowedValues = json.get("allowedValues").toString();
                     }
 
-                    yield new Value(path, type, value, allowedValues, writeable, recordable, json.toString());
+                    yield Stream
+                            .of(new Value(path, type, value, allowedValues, writeable, recordable, json.toString()));
                 }
 
-                case "refEnum" -> {
-                    var children = new ArrayList<KM200Endpoint>();
-                    for (var childJson : json.get("references")) {
-                        children.add(traverse(childJson.get("id").asText()));
-                    }
-                    yield new RefEnum(path, children);
-                }
+                case "refEnum" -> StreamSupport //
+                        .stream(json.get("references").spliterator(), false) //
+                        .map(it -> it.get("id").asText()) //
+                        .flatMap(this::traverse);
 
-                default -> new UnknownNode(path, type, json.toString());
+                default -> Stream.of(new UnknownNode(path, type, json.toString()));
                 };
             } catch (Forbidden e) {
-                return new ForbiddenNode(path);
+                return Stream.of(new ForbiddenNode(path));
+
+            } catch (IOException e) {
+                throw new KM200Exception("Traversing " + path + " failed", e);
+
+            } catch (InterruptedException e) {
+                throw new KM200Exception("Traversing " + path + " was interrupted", e);
             }
         }
     }
