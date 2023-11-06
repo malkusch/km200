@@ -138,6 +138,22 @@ public class KM200Test {
     }
 
     @Test
+    public void queryShouldFailOnLocked() throws Exception {
+        stubFor(get("/locked").willReturn(status(423)));
+        var km200 = new KM200(URI, TIMEOUT, GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
+
+        assertThrows(KM200Exception.Locked.class, () -> km200.queryString("/locked"));
+    }
+
+    @Test
+    public void updateShouldFailOnLocked() throws Exception {
+        stubFor(post("/update-locked").willReturn(status(423)));
+        var km200 = new KM200(URI, TIMEOUT, GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
+
+        assertThrows(KM200Exception.Locked.class, () -> km200.update("/update-locked", 42));
+    }
+
+    @Test
     public void queryShouldFailOnServerError() throws Exception {
         stubFor(get("/server-error").willReturn(serverError()));
         var km200 = new KM200(URI, TIMEOUT, GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
@@ -188,14 +204,6 @@ public class KM200Test {
     }
 
     @Test
-    public void updateShouldFailOnLocked() throws Exception {
-        stubFor(post("/locked").willReturn(status(423)));
-        var km200 = new KM200(URI, TIMEOUT, GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
-
-        assertThrows(KM200Exception.Locked.class, () -> km200.update("/locked", 42));
-    }
-
-    @Test
     public void queryShouldTimeout() throws Exception {
         stubFor(get("/timeout").willReturn(ok(loadBody("gateway.DateTime")).withFixedDelay(100)));
         var km200 = new KM200(URI, Duration.ofMillis(50), GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
@@ -243,6 +251,16 @@ public class KM200Test {
     }
 
     @Test
+    public void updateShouldNotRetryOnTimeout() throws Exception {
+        stubFor(post("/retry-update-timeout").willReturn(ok(loadBody("gateway.DateTime")).withFixedDelay(100)));
+        var km200 = new KM200(URI, Duration.ofMillis(50), GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
+
+        assertThrows(HttpTimeoutException.class, () -> km200.update("/retry-update-timeout", 42));
+
+        verify(1, postRequestedFor(urlEqualTo("/retry-update-timeout")));
+    }
+
+    @Test
     public void queryShouldRetryOnServerError() throws Exception {
         stubFor(get("/retry500").inScenario("retry500").whenScenarioStateIs(STARTED).willReturn(serverError())
                 .willSetStateTo("retry2"));
@@ -258,6 +276,23 @@ public class KM200Test {
 
         assertEquals("2021-09-21T10:49:25", dateTime);
         verify(4, getRequestedFor(urlEqualTo("/retry500")));
+    }
+
+    @Test
+    public void updateShouldRetryOnServerError() throws Exception {
+        stubFor(post("/update-retry500").inScenario("updateRetry500").whenScenarioStateIs(STARTED)
+                .willReturn(serverError()).willSetStateTo("retry2"));
+        stubFor(post("/update-retry500").inScenario("updateRetry500").whenScenarioStateIs("retry2")
+                .willReturn(serverError()).willSetStateTo("retry3"));
+        stubFor(post("/update-retry500").inScenario("updateRetry500").whenScenarioStateIs("retry3")
+                .willReturn(serverError()).willSetStateTo("ok"));
+        stubFor(post("/update-retry500").inScenario("updateRetry500").whenScenarioStateIs("ok")
+                .willReturn(ok(loadBody("gateway.DateTime"))));
+        var km200 = new KM200(URI, TIMEOUT, GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
+
+        km200.update("/update-retry500", 42);
+
+        verify(4, postRequestedFor(urlEqualTo("/update-retry500")));
     }
 
     @ParameterizedTest
@@ -277,6 +312,36 @@ public class KM200Test {
 
         assertEquals("2021-09-21T10:49:25", dateTime);
         verify(4, getRequestedFor(urlEqualTo("/retry-bad-response")));
+    }
+
+    @ParameterizedTest
+    @EnumSource(Fault.class)
+    public void updateShouldNotRetryOnBadResponse(Fault fault) throws Exception {
+        stubFor(post("/update-bad-response-retry").willReturn(aResponse().withFault(fault)));
+        var km200 = new KM200(URI, TIMEOUT, GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
+
+        assertThrows(IOException.class, () -> km200.update("/update-bad-response-retry", 42));
+        verify(1, postRequestedFor(urlEqualTo("/update-bad-response-retry")));
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = { 400, 401, 402, 403, 404, 423, 499, 599 })
+    public void queryShouldNotRetryOnClientErrors(int status) throws Exception {
+        stubFor(get("/client-error-retry").willReturn(status(status)));
+        var km200 = new KM200(URI, TIMEOUT, GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
+
+        assertThrows(KM200Exception.class, () -> km200.queryString("/client-error-retry"));
+        verify(1, getRequestedFor(urlEqualTo("/client-error-retry")));
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = { 400, 401, 402, 403, 404, 423, 499, 599 })
+    public void updateShouldNotRetryOnClientErrors(int status) throws Exception {
+        stubFor(post("/update-not-retry").willReturn(status(status)));
+        var km200 = new KM200(URI, TIMEOUT, GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
+
+        assertThrows(KM200Exception.class, () -> km200.update("/update-not-retry", 42));
+        verify(1, postRequestedFor(urlEqualTo("/update-not-retry")));
     }
 
     @Test

@@ -44,7 +44,20 @@ public final class KM200 {
     private final HttpClient http;
     private final Duration timeout;
     private final String uri;
-    private final FailsafeExecutor<HttpResponse<byte[]>> retry;
+
+    private static final int RETRY_COUNT = 3;
+    private static final Duration RETRY_DELAY_MIN = Duration.ofSeconds(1);
+    private static final Duration RETRY_DELAY_MAX = Duration.ofSeconds(2);
+
+    @SafeVarargs
+    private static <T> FailsafeExecutor<T> buildRetry(Class<? extends Throwable>... exceptions) {
+        return Failsafe.with( //
+                RetryPolicy.<T> builder() //
+                        .handle(exceptions) //
+                        .withMaxRetries(RETRY_COUNT) //
+                        .withDelay(RETRY_DELAY_MIN, RETRY_DELAY_MAX) //
+                        .build());
+    }
 
     /**
      * Configure the KM200 API.
@@ -119,13 +132,6 @@ public final class KM200 {
         this.http = newBuilder().connectTimeout(timeout).cookieHandler(new CookieManager()).followRedirects(ALWAYS)
                 .build();
 
-        retry = Failsafe.with( //
-                RetryPolicy.<HttpResponse<byte[]>> builder() //
-                        .handle(IOException.class, ServerError.class) //
-                        .withMaxRetries(3) //
-                        .withDelay(Duration.ofSeconds(1), Duration.ofSeconds(2)) //
-                        .build());
-
         query("/system");
     }
 
@@ -161,6 +167,8 @@ public final class KM200 {
         update(path, update);
     }
 
+    private final FailsafeExecutor<HttpResponse<String>> retryUpdate = buildRetry(ServerError.class);
+
     private void update(String path, Object update) throws KM200Exception, IOException, InterruptedException {
         String json = null;
         try {
@@ -173,7 +181,7 @@ public final class KM200 {
             throw new KM200Exception("Could not encrypt update " + json);
         }
         var request = request(path).POST(BodyPublishers.ofByteArray(encrypted)).build();
-        var response = send(request, BodyHandlers.ofString());
+        var response = sendWithRetries(retryUpdate, request, BodyHandlers.ofString());
 
         if (!(response.statusCode() >= 200 && response.statusCode() < 300)) {
             throw new KM200Exception(
@@ -181,13 +189,16 @@ public final class KM200 {
         }
     }
 
+    private final FailsafeExecutor<HttpResponse<byte[]>> retryQuery = buildRetry(IOException.class, ServerError.class);;
+
     public String query(String path) throws KM200Exception, IOException, InterruptedException {
         assertNotBlank(path, "Path must not be blank");
         if (!path.startsWith("/")) {
             throw new IllegalArgumentException("Path must start with a leading /");
         }
 
-        var response = get(path);
+        var request = request(path).GET().build();
+        var response = sendWithRetries(retryQuery, request, BodyHandlers.ofByteArray());
         var encrypted = response.body();
         if (encrypted == null) {
             throw new KM200Exception("No response when querying " + path);
@@ -208,10 +219,11 @@ public final class KM200 {
         return decrypted;
     }
 
-    private HttpResponse<byte[]> get(String path) throws IOException, InterruptedException {
+    private <T> HttpResponse<T> sendWithRetries(FailsafeExecutor<HttpResponse<T>> retry, HttpRequest request,
+            BodyHandler<T> bodyHandler) throws IOException, InterruptedException {
+
         try {
-            var request = request(path).GET().build();
-            return retry.get(() -> send(request, BodyHandlers.ofByteArray()));
+            return retry.get(() -> send(request, bodyHandler));
 
         } catch (FailsafeException e) {
             var cause = e.getCause();
