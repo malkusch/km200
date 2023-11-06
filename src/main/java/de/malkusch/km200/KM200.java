@@ -56,9 +56,10 @@ import dev.failsafe.RetryPolicy;
  * }
  * </pre>
  * 
- * Although code wise this class is thread safe, it is highly recommended to not
- * use it concurrently. Chances are that your KM200 gateway itself is not thread
- * safe.
+ * Code wise this class is thread safe, it is highly recommended to not use it
+ * concurrently. Your KM200 gateway itself is not thread safe. In order to
+ * protect users from wrong usage, this API will serialize all requests, i.e.
+ * concurrent requests will not happen concurrently.
  */
 public final class KM200 {
 
@@ -96,8 +97,9 @@ public final class KM200 {
      *            The base URI of your KM200 e.g. http://192.168.0.44
      * @param retries
      *            The amount of retries. Set to {@link #RETRY_DISABLED} to
-     *            disable retrying. Retries add a waiting delay between each retry
-     *            of several seconds, because the km200 recovers very slowly.
+     *            disable retrying. Retries add a waiting delay between each
+     *            retry of several seconds, because the km200 recovers very
+     *            slowly.
      * @param timeout
      *            An IO timeout for individual requests to your heater. Retries
      *            might block the API longer than this timeout.
@@ -249,23 +251,31 @@ public final class KM200 {
         }
     }
 
+    private final Object serializedSendLock = new Object();
+
     private <T> HttpResponse<T> send(HttpRequest request, BodyHandler<T> bodyHandler)
             throws IOException, InterruptedException, KM200Exception {
 
-        var response = http.send(request, bodyHandler);
-        var status = response.statusCode();
+        /*
+         * The KM200 itself is not thread safe. This lock serializes all
+         * requests to protect users from a wrong concurrent usage of this API.
+         */
+        synchronized (serializedSendLock) {
+            var response = http.send(request, bodyHandler);
+            var status = response.statusCode();
 
-        if (status >= 200 && status <= 299) {
-            return response;
+            if (status >= 200 && status <= 299) {
+                return response;
 
-        } else {
-            throw switch (status) {
-            case 403 -> new KM200Exception.Forbidden(request.uri() + " is forbidden");
-            case 404 -> new KM200Exception.NotFound(request.uri() + " was not found");
-            case 423 -> new KM200Exception.Locked(request.uri() + " was locked");
-            case 500 -> new KM200Exception.ServerError(request.uri() + " resulted in a server error");
-            default -> new KM200Exception(request.uri() + " failed with response code " + status);
-            };
+            } else {
+                throw switch (status) {
+                case 403 -> new KM200Exception.Forbidden(request.uri() + " is forbidden");
+                case 404 -> new KM200Exception.NotFound(request.uri() + " was not found");
+                case 423 -> new KM200Exception.Locked(request.uri() + " was locked");
+                case 500 -> new KM200Exception.ServerError(request.uri() + " resulted in a server error");
+                default -> new KM200Exception(request.uri() + " failed with response code " + status);
+                };
+            }
         }
     }
 

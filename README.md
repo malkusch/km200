@@ -84,7 +84,10 @@ km200.endpoints().forEach(System.out::println);
 
 ### Thread safety
 
-Code wise the API is thread safe, however your KM200 itself might not be. I did observe issues when querying my KM200 concurrently. It performed badly and with errors. It is advised to use this API not concurrently.
+Code wise this API is thread safe, it is highly recommended to not
+use it concurrently. Your KM200 gateway itself is not thread safe. In order
+to protect users from wrong usage, this API will serialize all requests, i.e.
+concurrent requests will not happen concurrently.
 
 ## License
 
