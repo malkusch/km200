@@ -11,7 +11,7 @@ This package is available in Maven central:
 <dependency>
     <groupId>de.malkusch.km200</groupId>
     <artifactId>km200</artifactId>
-    <version>2.0.0</version>
+    <version>2.1.0</version>
 </dependency>
 ```
 
@@ -24,7 +24,7 @@ To use the API you'll need the uri, gateway password, private password and the s
 The private password is the one you configure yourself when you connect via the
 [app](https://play.google.com/store/apps/details?id=com.bosch.tt.buderus) to your heater.
 If you forgot your password you can start the "reset internet password" flow in the menu
-of your heater and then reassign a new passwort in the app.
+of your heater and then reassign a new password in the app.
 
 ### Gateway password
 
