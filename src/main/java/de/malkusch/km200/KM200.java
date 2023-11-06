@@ -32,6 +32,30 @@ import dev.failsafe.RetryPolicy;
 /**
  * This is an API for Bosch/Buderus/Junkers heaters with a KM200 gateway.
  * 
+ * Example:
+ * 
+ * <pre>
+ * {@code
+ * var uri = "http://192.168.0.44";
+ * var gatewayPassword = "1234-5678-90ab-cdef";
+ * var privatePassword = "secretExample";
+ * var timeout = Duration.ofSeconds(5);
+ * var salt = "1234567890aabbccddeeff11223344556677889900aabbccddeeffa0a1a2b2d3";
+ * 
+ * var km200 = new KM200(uri, timeout, gatewayPassword, privatePassword, salt);
+ * 
+ * // Read the heater's time
+ * var time = km200.queryString("/gateway/DateTime");
+ * System.out.println(time);
+ * 
+ * // Update the heater's time
+ * km200.update("/gateway/DateTime", LocalDateTime.now());
+ * 
+ * // Explore the heater's endpoints
+ * km200.endpoints().forEach(System.out::println);
+ * }
+ * </pre>
+ * 
  * Although code wise this class is thread safe, it is highly recommended to not
  * use it concurrently. Chances are that your KM200 gateway itself is not thread
  * safe.
@@ -45,18 +69,21 @@ public final class KM200 {
     private final Duration timeout;
     private final String uri;
 
-    private static final int RETRY_COUNT = 3;
-    private static final Duration RETRY_DELAY_MIN = Duration.ofSeconds(1);
-    private static final Duration RETRY_DELAY_MAX = Duration.ofSeconds(2);
+    private final FailsafeExecutor<HttpResponse<byte[]>> retryQuery;
+    private final FailsafeExecutor<HttpResponse<String>> retryUpdate;
 
-    @SafeVarargs
-    private static <T> FailsafeExecutor<T> buildRetry(Class<? extends Throwable>... exceptions) {
-        return Failsafe.with( //
-                RetryPolicy.<T> builder() //
-                        .handle(exceptions) //
-                        .withMaxRetries(RETRY_COUNT) //
-                        .withDelay(RETRY_DELAY_MIN, RETRY_DELAY_MAX) //
-                        .build());
+    public static final int RETRY_DEFAULT = 3;
+    public static final int RETRY_DISABLED = 0;
+
+    /**
+     * Configure the KM200 API with a default retry of {@link #RETRY_DEFAULT}.
+     * 
+     * @see #KM200(String, int, Duration, String, String, String)
+     **/
+    public KM200(String uri, Duration timeout, String gatewayPassword, String privatePassword, String salt)
+            throws KM200Exception, IOException, InterruptedException {
+
+        this(uri, RETRY_DEFAULT, timeout, gatewayPassword, privatePassword, salt);
     }
 
     /**
@@ -65,34 +92,15 @@ public final class KM200 {
      * This will also issue a silent query to /system to verify that you
      * configuration is correct.
      * 
-     * Example:
-     * 
-     * <pre>
-     * {@code
-     * var uri = "http://192.168.0.44";
-     * var gatewayPassword = "1234-5678-90ab-cdef";
-     * var privatePassword = "secretExample";
-     * var timeout = Duration.ofSeconds(5);
-     * var salt = "1234567890aabbccddeeff11223344556677889900aabbccddeeffa0a1a2b2d3";
-     * 
-     * var km200 = new KM200(uri, timeout, gatewayPassword, privatePassword, salt);
-     * 
-     * // Read the heater's time
-     * var time = km200.queryString("/gateway/DateTime");
-     * System.out.println(time);
-     * 
-     * // Update the heater's time
-     * km200.update("/gateway/DateTime", LocalDateTime.now());
-     * 
-     * // Explore the heater's endpoints
-     * km200.endpoints().forEach(System.out::println);
-     * }
-     * </pre>
-     * 
      * @param uri
      *            The base URI of your KM200 e.g. http://192.168.0.44
+     * @param retries
+     *            The amount of retries. Set to {@link #RETRY_DISABLED} to
+     *            disable retrying. Retries add a waiting delay between each retry
+     *            of several seconds, because the km200 recovers very slowly.
      * @param timeout
-     *            An IO timeout for requests to your heater
+     *            An IO timeout for individual requests to your heater. Retries
+     *            might block the API longer than this timeout.
      * @param gatewayPassword
      *            The constant gateway password which you need to read out from
      *            your heater's display e.g. 1234-5678-90ab-cdef
@@ -100,7 +108,7 @@ public final class KM200 {
      *            The private password which you did assign in the app. If you
      *            forgot your private password you can start the "reset internet
      *            password" flow in the menu of your heater and then reassign a
-     *            new passwort in the app.
+     *            new password in the app.
      * @param salt
      *            The salt in the hexadecimal representation e.g. "12a0b2…"
      * 
@@ -108,7 +116,7 @@ public final class KM200 {
      * @throws IOException
      * @throws InterruptedException
      */
-    public KM200(String uri, Duration timeout, String gatewayPassword, String privatePassword, String salt)
+    public KM200(String uri, int retries, Duration timeout, String gatewayPassword, String privatePassword, String salt)
             throws KM200Exception, IOException, InterruptedException {
 
         assertNotBlank(uri, "uri must not be blank");
@@ -116,6 +124,7 @@ public final class KM200 {
         assertNotBlank(gatewayPassword, "gatewayPassword must not be blank");
         assertNotBlank(privatePassword, "privatePassword must not be blank");
         assertNotBlank(salt, "salt must not be blank");
+        assertNotNegative(retries, "retries must not be negative");
 
         var device = new KM200Device();
         device.setCharSet("UTF-8");
@@ -127,6 +136,8 @@ public final class KM200 {
         this.device = device;
 
         this.comm = new KM200Comm();
+        this.retryQuery = buildRetry(retries, IOException.class, ServerError.class);
+        this.retryUpdate = buildRetry(retries, ServerError.class);
         this.timeout = timeout;
         this.uri = uri.replaceAll("/*$", "");
         this.http = newBuilder().connectTimeout(timeout).cookieHandler(new CookieManager()).followRedirects(ALWAYS)
@@ -167,8 +178,6 @@ public final class KM200 {
         update(path, update);
     }
 
-    private final FailsafeExecutor<HttpResponse<String>> retryUpdate = buildRetry(ServerError.class);
-
     private void update(String path, Object update) throws KM200Exception, IOException, InterruptedException {
         String json = null;
         try {
@@ -188,8 +197,6 @@ public final class KM200 {
                     String.format("Failed to update %s [%d]: %s", path, response.statusCode(), response.body()));
         }
     }
-
-    private final FailsafeExecutor<HttpResponse<byte[]>> retryQuery = buildRetry(IOException.class, ServerError.class);;
 
     public String query(String path) throws KM200Exception, IOException, InterruptedException {
         assertNotBlank(path, "Path must not be blank");
@@ -294,8 +301,27 @@ public final class KM200 {
                 .timeout(timeout);
     }
 
+    private static final Duration RETRY_DELAY_MIN = Duration.ofSeconds(1);
+    private static final Duration RETRY_DELAY_MAX = Duration.ofSeconds(2);
+
+    @SafeVarargs
+    private static <T> FailsafeExecutor<T> buildRetry(int retries, Class<? extends Throwable>... exceptions) {
+        return Failsafe.with( //
+                RetryPolicy.<T> builder() //
+                        .handle(exceptions) //
+                        .withMaxRetries(retries) //
+                        .withDelay(RETRY_DELAY_MIN, RETRY_DELAY_MAX) //
+                        .build());
+    }
+
     private static void assertNotBlank(String var, String message) {
         if (requireNonNull(var).isBlank()) {
+            throw new IllegalArgumentException(message);
+        }
+    }
+
+    private static void assertNotNegative(int var, String message) {
+        if (var < 0) {
             throw new IllegalArgumentException(message);
         }
     }

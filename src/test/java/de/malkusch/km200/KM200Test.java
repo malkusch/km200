@@ -15,6 +15,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.verify;
 import static com.github.tomakehurst.wiremock.stubbing.Scenario.STARTED;
+import static de.malkusch.km200.KM200.RETRY_DISABLED;
 import static de.malkusch.km200.KM200.USER_AGENT;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -393,6 +394,26 @@ public class KM200Test {
         assertTrue(seconds > 2, "The retry was to fast: " + seconds + " seconds");
         assertEquals("2021-09-21T10:49:25", dateTime);
         verify(4, getRequestedFor(urlEqualTo("/retry-wait")));
+    }
+
+    @Test
+    public void queryShouldNotRetryWhenDisabled() throws Exception {
+        stubFor(get("/retry-disabled").willReturn(serverError()));
+        var km200 = new KM200(URI, RETRY_DISABLED, TIMEOUT, GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
+
+        assertThrows(KM200Exception.class, () -> km200.queryString("/retry-disabled"));
+
+        verify(1, getRequestedFor(urlEqualTo("/retry-disabled")));
+    }
+
+    @Test
+    public void updateShouldNotRetryWhenDisabled() throws Exception {
+        stubFor(post("/update-retry-disabled").willReturn(serverError()));
+        var km200 = new KM200(URI, RETRY_DISABLED, TIMEOUT, GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
+
+        assertThrows(KM200Exception.class, () -> km200.update("/update-retry-disabled", 42));
+
+        verify(1, postRequestedFor(urlEqualTo("/update-retry-disabled")));
     }
 
     private static String loadBody(String path) throws IOException {
