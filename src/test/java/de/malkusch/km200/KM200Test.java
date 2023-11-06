@@ -1,5 +1,6 @@
 package de.malkusch.km200;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.anyUrl;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
@@ -17,7 +18,6 @@ import static com.github.tomakehurst.wiremock.stubbing.Scenario.STARTED;
 import static de.malkusch.km200.KM200.USER_AGENT;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.io.IOUtils.resourceToString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -32,8 +32,10 @@ import org.apache.commons.lang3.time.StopWatch;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import com.github.tomakehurst.wiremock.http.Fault;
 import com.github.tomakehurst.wiremock.junit5.WireMockTest;
 
 @WireMockTest(httpPort = KM200Test.PORT)
@@ -125,6 +127,15 @@ public class KM200Test {
         assertThrows(KM200Exception.class, () -> km200.queryString("/unknown-error"));
     }
 
+    @ParameterizedTest
+    @EnumSource(Fault.class)
+    public void shouldFailOnBadResponse(Fault fault) throws Exception {
+        stubFor(get("/bad-response").willReturn(aResponse().withFault(fault)));
+        var km200 = new KM200(URI, TIMEOUT, GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
+
+        assertThrows(IOException.class, () -> km200.queryString("/bad-response"));
+    }
+
     @Test
     public void shouldFailOnLocked() throws Exception {
         stubFor(post("/locked").willReturn(status(423)));
@@ -139,6 +150,14 @@ public class KM200Test {
         var km200 = new KM200(URI, Duration.ofMillis(50), GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
 
         assertThrows(HttpTimeoutException.class, () -> km200.query("/timeout"));
+    }
+
+    @Test
+    public void shouldTimeoutResponseBody() throws Exception {
+        stubFor(get("/timeout-body").willReturn(ok(loadBody("gateway.DateTime")).withChunkedDribbleDelay(5, 20000)));
+        var km200 = new KM200(URI, Duration.ofMillis(50), GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
+
+        assertThrows(HttpTimeoutException.class, () -> km200.query("/timeout-body"));
     }
 
     @Test
@@ -171,6 +190,25 @@ public class KM200Test {
 
         assertEquals("2021-09-21T10:49:25", dateTime);
         verify(4, getRequestedFor(urlEqualTo("/retry500")));
+    }
+
+    @ParameterizedTest
+    @EnumSource(Fault.class)
+    public void shouldRetryOnBadResponse(Fault fault) throws Exception {
+        stubFor(get("/retry-bad-response").inScenario("retryBadResponse").whenScenarioStateIs(STARTED)
+                .willReturn(aResponse().withFault(fault)).willSetStateTo("retry2"));
+        stubFor(get("/retry-bad-response").inScenario("retryBadResponse").whenScenarioStateIs("retry2")
+                .willReturn(aResponse().withFault(fault)).willSetStateTo("retry3"));
+        stubFor(get("/retry-bad-response").inScenario("retryBadResponse").whenScenarioStateIs("retry3")
+                .willReturn(aResponse().withFault(fault)).willSetStateTo("ok"));
+        stubFor(get("/retry-bad-response").inScenario("retryBadResponse").whenScenarioStateIs("ok")
+                .willReturn(ok(loadBody("gateway.DateTime"))));
+        var km200 = new KM200(URI, TIMEOUT, GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
+
+        var dateTime = km200.queryString("/retry-bad-response");
+
+        assertEquals("2021-09-21T10:49:25", dateTime);
+        verify(4, getRequestedFor(urlEqualTo("/retry-bad-response")));
     }
 
     @Test
