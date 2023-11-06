@@ -11,7 +11,7 @@ This package is available in Maven central:
 <dependency>
     <groupId>de.malkusch.km200</groupId>
     <artifactId>km200</artifactId>
-    <version>2.1.0</version>
+    <version>2.1.1</version>
 </dependency>
 ```
 
@@ -87,7 +87,7 @@ km200.endpoints().forEach(System.out::println);
 Code wise this API is thread safe, it is highly recommended to not
 use it concurrently. Your KM200 gateway itself is not thread safe. In order
 to protect users from wrong usage, this API will serialize all requests, i.e.
-concurrent requests will not happen concurrently.
+concurrent requests will happen sequentially.
 
 ## License
 

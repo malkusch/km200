@@ -59,7 +59,7 @@ import dev.failsafe.RetryPolicy;
  * Code wise this class is thread safe, it is highly recommended to not use it
  * concurrently. Your KM200 gateway itself is not thread safe. In order to
  * protect users from wrong usage, this API will serialize all requests, i.e.
- * concurrent requests will not happen concurrently.
+ * concurrent requests will happen sequentially.
  */
 public final class KM200 {
 
