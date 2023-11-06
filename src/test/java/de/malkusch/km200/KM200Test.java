@@ -54,6 +54,26 @@ public class KM200Test {
     }
 
     @ParameterizedTest
+    @ValueSource(ints = { 200, 201, 204, 299 })
+    public void updateShouldSucceedWith2xx(int status) throws Exception {
+        stubFor(post("/update").willReturn(status(status)));
+        var km200 = new KM200(URI, TIMEOUT, GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
+
+        km200.update("/update", 42);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = { 200, 201, 299 })
+    public void queryShouldSucceedWith2xx(int status) throws Exception {
+        stubFor(get("/query").willReturn(status(status).withBody(loadBody("gateway.DateTime"))));
+        var km200 = new KM200(URI, TIMEOUT, GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
+
+        var dateTime = km200.queryString("/query");
+
+        assertEquals("2021-09-21T10:49:25", dateTime);
+    }
+
+    @ParameterizedTest
     @ValueSource(strings = { "http://localhost:" + PORT, "http://localhost:" + PORT + "/" })
     public void queryShouldReplaceSlashesInURI(String uri) throws Exception {
         stubFor(get("/gateway/DateTime").willReturn(ok(loadBody("gateway.DateTime"))));

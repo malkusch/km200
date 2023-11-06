@@ -246,14 +246,20 @@ public final class KM200 {
             throws IOException, InterruptedException, KM200Exception {
 
         var response = http.send(request, bodyHandler);
-        return switch (response.statusCode()) {
-        case 200 -> response;
-        case 403 -> throw new KM200Exception.Forbidden(request.uri() + " is forbidden");
-        case 404 -> throw new KM200Exception.NotFound(request.uri() + " was not found");
-        case 423 -> throw new KM200Exception.Locked(request.uri() + " was locked");
-        case 500 -> throw new KM200Exception.ServerError(request.uri() + " resulted in a server error");
-        default -> throw new KM200Exception(request.uri() + " failed with response code " + response.statusCode());
-        };
+        var status = response.statusCode();
+
+        if (status >= 200 && status <= 299) {
+            return response;
+
+        } else {
+            throw switch (status) {
+            case 403 -> new KM200Exception.Forbidden(request.uri() + " is forbidden");
+            case 404 -> new KM200Exception.NotFound(request.uri() + " was not found");
+            case 423 -> new KM200Exception.Locked(request.uri() + " was locked");
+            case 500 -> new KM200Exception.ServerError(request.uri() + " resulted in a server error");
+            default -> new KM200Exception(request.uri() + " failed with response code " + status);
+            };
+        }
     }
 
     public double queryDouble(String path) throws KM200Exception, IOException, InterruptedException {
