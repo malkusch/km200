@@ -12,6 +12,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandler;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -172,12 +173,9 @@ public final class KM200 {
             throw new KM200Exception("Could not encrypt update " + json);
         }
         var request = request(path).POST(BodyPublishers.ofByteArray(encrypted)).build();
-        var response = http.send(request, BodyHandlers.ofString());
+        var response = send(request, BodyHandlers.ofString());
 
         if (!(response.statusCode() >= 200 && response.statusCode() < 300)) {
-            if (response.statusCode() == 423) {
-                throw new KM200Exception.Locked(String.format("Failed to update %s with %s", path, json));
-            }
             throw new KM200Exception(
                     String.format("Failed to update %s [%d]: %s", path, response.statusCode(), response.body()));
         }
@@ -212,7 +210,8 @@ public final class KM200 {
 
     private HttpResponse<byte[]> get(String path) throws IOException, InterruptedException {
         try {
-            return retry.get(() -> _get_unsafe(path));
+            var request = request(path).GET().build();
+            return retry.get(() -> send(request, BodyHandlers.ofByteArray()));
 
         } catch (FailsafeException e) {
             var cause = e.getCause();
@@ -231,18 +230,17 @@ public final class KM200 {
         }
     }
 
-    private HttpResponse<byte[]> _get_unsafe(String path) throws IOException, InterruptedException {
-        var request = request(path).GET().build();
+    private <T> HttpResponse<T> send(HttpRequest request, BodyHandler<T> bodyHandler)
+            throws IOException, InterruptedException, KM200Exception {
 
-        HttpResponse<byte[]> response;
-        response = http.send(request, BodyHandlers.ofByteArray());
-
+        var response = http.send(request, bodyHandler);
         return switch (response.statusCode()) {
         case 200 -> response;
-        case 403 -> throw new KM200Exception.Forbidden("Query " + path + " is forbidden");
-        case 404 -> throw new KM200Exception.NotFound("Query " + path + " was not found");
-        case 500 -> throw new KM200Exception.ServerError("Query " + path + " resulted in a server error");
-        default -> throw new KM200Exception("Query " + path + " failed with response code " + response.statusCode());
+        case 403 -> throw new KM200Exception.Forbidden(request.uri() + " is forbidden");
+        case 404 -> throw new KM200Exception.NotFound(request.uri() + " was not found");
+        case 423 -> throw new KM200Exception.Locked(request.uri() + " was locked");
+        case 500 -> throw new KM200Exception.ServerError(request.uri() + " resulted in a server error");
+        default -> throw new KM200Exception(request.uri() + " failed with response code " + response.statusCode());
         };
     }
 
