@@ -203,6 +203,15 @@ public class KM200Test {
         assertThrows(IOException.class, () -> km200.update("/update-bad-response", 42));
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = { "", "\r\n", "\r\n\r\n", "bad", "dGVzdAo=" })
+    public void queryShouldFailOnBadBody(String body) throws Exception {
+        stubFor(get("/bad-body").willReturn(ok(body)));
+        var km200 = new KM200(URI, TIMEOUT, GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
+
+        assertThrows(KM200Exception.class, () -> km200.queryString("/bad-body"));
+    }
+
     @Test
     public void queryShouldTimeout() throws Exception {
         stubFor(get("/timeout").willReturn(ok(loadBody("gateway.DateTime")).withFixedDelay(100)));
