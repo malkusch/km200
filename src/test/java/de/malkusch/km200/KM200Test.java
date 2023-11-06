@@ -18,6 +18,7 @@ import static com.github.tomakehurst.wiremock.stubbing.Scenario.STARTED;
 import static com.google.common.net.HttpHeaders.LOCATION;
 import static de.malkusch.km200.KM200.RETRY_DISABLED;
 import static de.malkusch.km200.KM200.USER_AGENT;
+import static java.lang.Thread.currentThread;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.apache.commons.io.IOUtils.resourceToString;
@@ -140,6 +141,26 @@ public class KM200Test {
     }
 
     @Test
+    public void queryShouldInterrupt() throws Exception {
+        stubFor(get("/interrupt").willReturn(ok(loadBody("gateway.DateTime"))));
+        var km200 = new KM200(URI, TIMEOUT, GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
+
+        currentThread().interrupt();
+
+        assertThrows(InterruptedException.class, () -> km200.queryString("/interrupt"));
+    }
+
+    @Test
+    public void updateShouldInterrupt() throws Exception {
+        stubFor(post("/update-interrupt").willReturn(ok()));
+        var km200 = new KM200(URI, TIMEOUT, GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
+
+        currentThread().interrupt();
+
+        assertThrows(InterruptedException.class, () -> km200.update("/update-interrupt", 42));
+    }
+
+    @Test
     public void queryShouldFailOnNonExistingPath() throws Exception {
         stubFor(get("/non-existing").willReturn(notFound()));
         var km200 = new KM200(URI, TIMEOUT, GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
@@ -169,6 +190,22 @@ public class KM200Test {
         var km200 = new KM200(URI, TIMEOUT, GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
 
         assertThrows(KM200Exception.Forbidden.class, () -> km200.update("/update-forbidden", 42));
+    }
+
+    @Test
+    public void queryShouldFailOnBadRequest() throws Exception {
+        stubFor(get("/bad").willReturn(status(400)));
+        var km200 = new KM200(URI, TIMEOUT, GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
+
+        assertThrows(KM200Exception.BadRequest.class, () -> km200.queryString("/bad"));
+    }
+
+    @Test
+    public void updateShouldFailOnBadRequest() throws Exception {
+        stubFor(post("/bad").willReturn(status(400)));
+        var km200 = new KM200(URI, TIMEOUT, GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
+
+        assertThrows(KM200Exception.BadRequest.class, () -> km200.update("/bad", 42));
     }
 
     @Test

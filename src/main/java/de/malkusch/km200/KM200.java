@@ -1,19 +1,9 @@
 package de.malkusch.km200;
 
-import static java.net.http.HttpClient.newBuilder;
-import static java.net.http.HttpClient.Redirect.ALWAYS;
 import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.net.CookieManager;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpRequest.BodyPublishers;
-import java.net.http.HttpResponse;
-import java.net.http.HttpResponse.BodyHandler;
-import java.net.http.HttpResponse.BodyHandlers;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -24,10 +14,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import de.malkusch.km200.KM200Exception.ServerError;
-import dev.failsafe.Failsafe;
-import dev.failsafe.FailsafeException;
-import dev.failsafe.FailsafeExecutor;
-import dev.failsafe.RetryPolicy;
+import de.malkusch.km200.http.Http;
+import de.malkusch.km200.http.JdkHttp;
+import de.malkusch.km200.http.RetryHttp;
+import de.malkusch.km200.http.SerializedHttp;
 
 /**
  * This is an API for Bosch/Buderus/Junkers heaters with a KM200 gateway.
@@ -66,15 +56,13 @@ public final class KM200 {
     private final KM200Device device;
     private final KM200Comm comm;
     private final ObjectMapper mapper = new ObjectMapper();
-    private final HttpClient http;
-    private final Duration timeout;
-    private final String uri;
-
-    private final FailsafeExecutor<HttpResponse<byte[]>> retryQuery;
-    private final FailsafeExecutor<HttpResponse<String>> retryUpdate;
+    private final Http queryHttp;
+    private final Http updateHttp;
 
     public static final int RETRY_DEFAULT = 3;
     public static final int RETRY_DISABLED = 0;
+
+    static final String USER_AGENT = "TeleHeater/2.2.3";
 
     /**
      * Configure the KM200 API with a default retry of {@link #RETRY_DEFAULT}.
@@ -136,14 +124,21 @@ public final class KM200 {
         device.setMD5Salt(salt);
         device.setInited(true);
         this.device = device;
-
         this.comm = new KM200Comm();
-        this.retryQuery = buildRetry(retries, IOException.class, ServerError.class);
-        this.retryUpdate = buildRetry(retries, ServerError.class);
-        this.timeout = timeout;
-        this.uri = uri.replaceAll("/*$", "");
-        this.http = newBuilder().connectTimeout(timeout).cookieHandler(new CookieManager()).followRedirects(ALWAYS)
-                .build();
+
+        {
+            Http http = new JdkHttp(uri.replaceAll("/*$", ""), USER_AGENT, timeout);
+
+            /*
+             * The KM200 itself is not thread safe. This proxy serializes all
+             * requests to protect users from a wrong concurrent usage of this
+             * API.
+             */
+            http = new SerializedHttp(http);
+
+            queryHttp = new RetryHttp(http, retries, IOException.class, ServerError.class);
+            updateHttp = new RetryHttp(http, retries, ServerError.class);
+        }
 
         query("/system");
     }
@@ -181,6 +176,8 @@ public final class KM200 {
     }
 
     private void update(String path, Object update) throws KM200Exception, IOException, InterruptedException {
+        assertPath(path);
+
         String json = null;
         try {
             json = mapper.writeValueAsString(update);
@@ -191,23 +188,18 @@ public final class KM200 {
         if (encrypted == null) {
             throw new KM200Exception("Could not encrypt update " + json);
         }
-        var request = request(path).POST(BodyPublishers.ofByteArray(encrypted)).build();
-        var response = sendWithRetries(retryUpdate, request, BodyHandlers.ofString());
+        var response = updateHttp.post(path, encrypted);
 
-        if (!(response.statusCode() >= 200 && response.statusCode() < 300)) {
+        if (!(response.status() >= 200 && response.status() < 300)) {
             throw new KM200Exception(
-                    String.format("Failed to update %s [%d]: %s", path, response.statusCode(), response.body()));
+                    String.format("Failed to update %s [%d]: %s", path, response.status(), response.body()));
         }
     }
 
     public String query(String path) throws KM200Exception, IOException, InterruptedException {
-        assertNotBlank(path, "Path must not be blank");
-        if (!path.startsWith("/")) {
-            throw new IllegalArgumentException("Path must start with a leading /");
-        }
+        assertPath(path);
 
-        var request = request(path).GET().build();
-        var response = sendWithRetries(retryQuery, request, BodyHandlers.ofByteArray());
+        var response = queryHttp.get(path);
         var encrypted = response.body();
         if (encrypted == null) {
             throw new KM200Exception("No response when querying " + path);
@@ -226,57 +218,6 @@ public final class KM200 {
             }
         }
         return decrypted;
-    }
-
-    private <T> HttpResponse<T> sendWithRetries(FailsafeExecutor<HttpResponse<T>> retry, HttpRequest request,
-            BodyHandler<T> bodyHandler) throws IOException, InterruptedException {
-
-        try {
-            return retry.get(() -> send(request, bodyHandler));
-
-        } catch (FailsafeException e) {
-            var cause = e.getCause();
-            if (cause instanceof IOException) {
-                throw (IOException) cause;
-
-            } else if (cause instanceof InterruptedException) {
-                throw (InterruptedException) cause;
-
-            } else if (cause instanceof KM200Exception) {
-                throw (KM200Exception) cause;
-
-            } else {
-                throw e;
-            }
-        }
-    }
-
-    private final Object serializedSendLock = new Object();
-
-    private <T> HttpResponse<T> send(HttpRequest request, BodyHandler<T> bodyHandler)
-            throws IOException, InterruptedException, KM200Exception {
-
-        /*
-         * The KM200 itself is not thread safe. This lock serializes all
-         * requests to protect users from a wrong concurrent usage of this API.
-         */
-        synchronized (serializedSendLock) {
-            var response = http.send(request, bodyHandler);
-            var status = response.statusCode();
-
-            if (status >= 200 && status <= 299) {
-                return response;
-
-            } else {
-                throw switch (status) {
-                case 403 -> new KM200Exception.Forbidden(request.uri() + " is forbidden");
-                case 404 -> new KM200Exception.NotFound(request.uri() + " was not found");
-                case 423 -> new KM200Exception.Locked(request.uri() + " was locked");
-                case 500 -> new KM200Exception.ServerError(request.uri() + " resulted in a server error");
-                default -> new KM200Exception(request.uri() + " failed with response code " + status);
-                };
-            }
-        }
     }
 
     public double queryDouble(String path) throws KM200Exception, IOException, InterruptedException {
@@ -302,26 +243,11 @@ public final class KM200 {
         }
     }
 
-    static final String USER_AGENT = "TeleHeater/2.2.3";
-
-    private HttpRequest.Builder request(String path) {
-        return HttpRequest.newBuilder(URI.create(uri + path)) //
-                .setHeader("User-Agent", USER_AGENT) //
-                .setHeader("Accept", "application/json") //
-                .timeout(timeout);
-    }
-
-    private static final Duration RETRY_DELAY_MIN = Duration.ofSeconds(1);
-    private static final Duration RETRY_DELAY_MAX = Duration.ofSeconds(2);
-
-    @SafeVarargs
-    private static <T> FailsafeExecutor<T> buildRetry(int retries, Class<? extends Throwable>... exceptions) {
-        return Failsafe.with( //
-                RetryPolicy.<T> builder() //
-                        .handle(exceptions) //
-                        .withMaxRetries(retries) //
-                        .withDelay(RETRY_DELAY_MIN, RETRY_DELAY_MAX) //
-                        .build());
+    private static void assertPath(String path) {
+        assertNotBlank(path, "Path must not be blank");
+        if (!path.startsWith("/")) {
+            throw new IllegalArgumentException("Path must start with a leading /");
+        }
     }
 
     private static void assertNotBlank(String var, String message) {
