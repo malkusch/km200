@@ -15,6 +15,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.verify;
 import static com.github.tomakehurst.wiremock.stubbing.Scenario.STARTED;
+import static com.google.common.net.HttpHeaders.LOCATION;
 import static de.malkusch.km200.KM200.RETRY_DISABLED;
 import static de.malkusch.km200.KM200.USER_AGENT;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -70,6 +71,18 @@ public class KM200Test {
         var km200 = new KM200(URI, TIMEOUT, GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
 
         var dateTime = km200.queryString("/query");
+
+        assertEquals("2021-09-21T10:49:25", dateTime);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = { 301, 302, 303 })
+    public void queryShouldFollowRedirect(int status) throws Exception {
+        stubFor(get("/moved").willReturn(aResponse().withStatus(status).withHeader(LOCATION, "/new")));
+        stubFor(get("/new").willReturn(ok(loadBody("gateway.DateTime"))));
+        var km200 = new KM200(URI, TIMEOUT, GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
+
+        var dateTime = km200.queryString("/moved");
 
         assertEquals("2021-09-21T10:49:25", dateTime);
     }
