@@ -6,7 +6,7 @@ import de.malkusch.km200.KM200Exception;
 
 public abstract class Http {
 
-    sealed interface Request permits Request.Get, Request.Post {
+    sealed interface Request {
 
         String path();
 
