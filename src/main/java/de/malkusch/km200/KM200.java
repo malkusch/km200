@@ -212,19 +212,15 @@ public final class KM200 {
             throw new KM200Exception("No response when querying " + path);
         }
         var decrypted = comm.decodeMessage(device, encrypted);
-        if (decrypted == null) {
-            throw new KM200Exception("Could not decrypt query " + path);
-        }
-        if (path.equals("/gateway/firmware")) {
-            return decrypted;
-        } else {
-            if (!decrypted.startsWith("{")) {
-                throw new KM200Exception(
-                        String.format("Could not decrypt query %s. Body was:\n%s\n\n Decrypted was:\n%s", path,
-                                encrypted, decrypted));
-            }
-        }
-        return decrypted;
+
+        return switch (decrypted) {
+        case String d when path.equals("/gateway/firmware") -> decrypted;
+        case String d when d.startsWith("{") -> decrypted;
+
+        case null -> throw new KM200Exception("Could not decrypt query " + path);
+        case String d -> throw new KM200Exception(String.format(
+                "Could not decrypt query %s. Body was:\n%s\n\n Decrypted was:\n%s", path, encrypted, decrypted));
+        };
     }
 
     public double queryDouble(String path) throws KM200Exception, IOException, InterruptedException {
@@ -267,8 +263,13 @@ public final class KM200 {
         assertNotBlank(var, "Wrong uri " + var);
         var uri = URI.create(var);
 
-        var scheme = uri.getScheme();
-        if (scheme == null || !(scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"))) {
+        switch (uri.getScheme()) {
+        case String s when s.equalsIgnoreCase("http"):
+            break;
+        case String s when s.equalsIgnoreCase("https"):
+            break;
+
+        case null, default:
             throw new IllegalArgumentException("Wrong uri " + var);
         }
     }

@@ -34,17 +34,12 @@ public final class RetryHttp extends Http {
             return retry.get(() -> http.exchange(request));
 
         } catch (FailsafeException e) {
-            if (e.getCause() instanceof IOException cause) {
-                throw cause;
-
-            } else if (e.getCause() instanceof InterruptedException cause) {
-                throw cause;
-
-            } else if (e.getCause() instanceof KM200Exception cause) {
-                throw cause;
-
-            } else {
-                throw new KM200Exception("Unexpected retry error for " + request.path(), e);
+            switch (e.getCause()) {
+            case IOException cause -> throw cause;
+            case InterruptedException cause -> throw cause;
+            case KM200Exception cause -> throw cause;
+            case Throwable cause -> throw new KM200Exception("Unexpected retry error for " + request.path(), cause);
+            case null -> throw new KM200Exception("Unexpected retry error for " + request.path(), e);
             }
         }
     }

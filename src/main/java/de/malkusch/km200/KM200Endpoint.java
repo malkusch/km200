@@ -12,7 +12,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import de.malkusch.km200.KM200Exception.Forbidden;
 
-public abstract class KM200Endpoint {
+public abstract sealed class KM200Endpoint {
     private final String path;
     private final String type;
 
@@ -30,7 +30,7 @@ public abstract class KM200Endpoint {
         return String.format("%s [%s]", path, type);
     }
 
-    public static class Value extends KM200Endpoint {
+    public static final class Value extends KM200Endpoint {
         private final String body;
         private final boolean writeable;
         private final boolean recordable;
@@ -57,13 +57,13 @@ public abstract class KM200Endpoint {
         }
     }
 
-    public static class ForbiddenNode extends KM200Endpoint {
+    public static final class ForbiddenNode extends KM200Endpoint {
         ForbiddenNode(String path) {
             super(path, "Forbidden");
         }
     }
 
-    public static class UnknownNode extends KM200Endpoint {
+    public static final class UnknownNode extends KM200Endpoint {
         private final String value;
 
         UnknownNode(String path, String type, String value) {
@@ -139,14 +139,11 @@ public abstract class KM200Endpoint {
             var writeable = json.path("writeable").asBoolean(false);
             var recordable = json.path("recordable").asBoolean(false);
 
-            String value;
-            if (json.has("value")) {
-                value = json.get("value").asText();
-            } else if (json.has("values")) {
-                value = json.get("values").toString();
-            } else {
-                value = json.toString();
-            }
+            String value = switch (json) {
+            case JsonNode j when j.has("value") -> json.get("value").asText();
+            case JsonNode j when j.has("values") -> json.get("values").toString();
+            default -> json.toString();
+            };
 
             String allowedValues = null;
             if (json.has("allowedValues")) {

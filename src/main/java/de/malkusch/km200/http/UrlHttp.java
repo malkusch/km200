@@ -1,6 +1,7 @@
 package de.malkusch.km200.http;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.SocketTimeoutException;
@@ -45,9 +46,11 @@ public final class UrlHttp extends Http {
                 throw new IOException(request + " received invalid HTTP response");
             }
 
-            try (var input = connection.getErrorStream() != null ? connection.getErrorStream()
-                    : connection.getInputStream()) {
-
+            var input = switch (connection.getErrorStream()) {
+            case InputStream error -> error;
+            case null -> connection.getInputStream();
+            };
+            try (input) {
                 var body = input.readAllBytes();
                 var response = new Response(status, body);
                 return assertHttpOk(request, response);
@@ -63,7 +66,12 @@ public final class UrlHttp extends Http {
 
     private HttpURLConnection connect(Request request) throws IOException {
         try {
-            var connection = (HttpURLConnection) new URL(uri + request.path()).openConnection();
+            var url = new URL(uri + request.path());
+
+            if (!(url.openConnection() instanceof HttpURLConnection connection)) {
+                throw new IllegalStateException(url + " is not a http url");
+            }
+
             connection.setConnectTimeout(timeoutMillis);
             connection.setReadTimeout(timeoutMillis);
             connection.setRequestProperty("User-Agent", userAgent);
@@ -74,7 +82,6 @@ public final class UrlHttp extends Http {
             }
 
             connection.connect();
-
             return connection;
 
         } catch (MalformedURLException e) {
