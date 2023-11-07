@@ -7,7 +7,8 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.SocketTimeoutException;
-import java.net.URL;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.http.HttpTimeoutException;
 import java.time.Duration;
 
@@ -66,11 +67,10 @@ public final class UrlHttp extends Http {
     }
 
     private HttpURLConnection connect(Request request) throws IOException {
+        var uri = this.uri + request.path();
         try {
-            var url = new URL(uri + request.path());
-
-            if (!(url.openConnection() instanceof HttpURLConnection connection)) {
-                throw new IllegalStateException(url + " is not a http url");
+            if (!(new URI(uri).toURL().openConnection() instanceof HttpURLConnection connection)) {
+                throw new IllegalStateException(uri + " is not a http url");
             }
 
             connection.setConnectTimeout(timeoutMillis);
@@ -85,8 +85,8 @@ public final class UrlHttp extends Http {
             connection.connect();
             return connection;
 
-        } catch (MalformedURLException e) {
-            throw new IllegalArgumentException("Invalid path " + request, e);
+        } catch (MalformedURLException | URISyntaxException e) {
+            throw new IllegalArgumentException("Invalid uri " + uri, e);
         }
     }
 }
