@@ -15,10 +15,10 @@ public final class SerializedHttp extends Http {
     }
 
     @Override
-    public Response send(Request request) throws IOException, InterruptedException, KM200Exception {
+    public Response exchange(Request request) throws IOException, InterruptedException, KM200Exception {
         lock.lockInterruptibly();
         try {
-            return http.send(request);
+            return http.exchange(request);
 
         } finally {
             lock.unlock();

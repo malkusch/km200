@@ -319,15 +319,17 @@ public class KM200Test {
     @Test
     public void queryShouldRetryOnTimeout() throws Exception {
         stubFor(get("/retry").inScenario("retry").whenScenarioStateIs(STARTED)
-                .willReturn(notFound().withFixedDelay(100)).willSetStateTo("retry"));
-        stubFor(get("/retry").inScenario("retry").whenScenarioStateIs("retry")
+                .willReturn(ok(loadBody("gateway.DateTime")).withFixedDelay(100)).willSetStateTo("retry2"));
+        stubFor(get("/retry").inScenario("retry").whenScenarioStateIs("retry2").willReturn(serverError())
+                .willReturn(ok(loadBody("gateway.DateTime")).withChunkedDribbleDelay(2, 200)).willSetStateTo("ok"));
+        stubFor(get("/retry").inScenario("retry").whenScenarioStateIs("ok")
                 .willReturn(ok(loadBody("gateway.DateTime"))));
         var km200 = new KM200(URI, Duration.ofMillis(50), GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
 
         var dateTime = km200.queryString("/retry");
 
         assertEquals("2021-09-21T10:49:25", dateTime);
-        verify(2, getRequestedFor(urlEqualTo("/retry")));
+        verify(3, getRequestedFor(urlEqualTo("/retry")));
     }
 
     @Test

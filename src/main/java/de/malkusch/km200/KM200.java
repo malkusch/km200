@@ -15,9 +15,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import de.malkusch.km200.KM200Exception.ServerError;
 import de.malkusch.km200.http.Http;
-import de.malkusch.km200.http.JdkHttp;
 import de.malkusch.km200.http.RetryHttp;
 import de.malkusch.km200.http.SerializedHttp;
+import de.malkusch.km200.http.UrlHttp;
 
 /**
  * This is an API for Bosch/Buderus/Junkers heaters with a KM200 gateway.
@@ -127,7 +127,9 @@ public final class KM200 {
         this.comm = new KM200Comm();
 
         {
-            Http http = new JdkHttp(uri.replaceAll("/*$", ""), USER_AGENT, timeout);
+            // Http http = new JdkHttp(uri.replaceAll("/*$", ""), USER_AGENT,
+            // timeout);
+            Http http = new UrlHttp(uri.replaceAll("/*$", ""), USER_AGENT, timeout);
 
             /*
              * The KM200 itself is not thread safe. This proxy serializes all

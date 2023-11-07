@@ -29,9 +29,9 @@ public final class RetryHttp extends Http {
     }
 
     @Override
-    public Response send(Request request) throws IOException, InterruptedException, KM200Exception {
+    public Response exchange(Request request) throws IOException, InterruptedException, KM200Exception {
         try {
-            return retry.get(() -> http.send(request));
+            return retry.get(() -> http.exchange(request));
 
         } catch (FailsafeException e) {
             if (e.getCause() instanceof IOException cause) {

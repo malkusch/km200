@@ -2,7 +2,9 @@ package de.malkusch.km200.http;
 
 import static java.net.http.HttpClient.newBuilder;
 import static java.net.http.HttpClient.Redirect.ALWAYS;
+import static java.net.http.HttpClient.Version.HTTP_1_1;
 import static java.net.http.HttpRequest.BodyPublishers.ofByteArray;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import java.io.IOException;
 import java.net.CookieManager;
@@ -10,7 +12,12 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse.BodyHandlers;
+import java.net.http.HttpTimeoutException;
 import java.time.Duration;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeoutException;
 
 import de.malkusch.km200.KM200Exception;
 import de.malkusch.km200.http.Http.Request.Get;
@@ -22,37 +29,74 @@ public final class JdkHttp extends Http {
     private final String uri;
     private final String userAgent;
     private final Duration timeout;
+    private final Duration hardTimeout;
+    private final ExecutorService executor;
 
     public JdkHttp(String uri, String userAgent, Duration timeout) {
         this.uri = uri;
         this.userAgent = userAgent;
         this.timeout = timeout;
+        this.hardTimeout = timeout.multipliedBy(2);
+
+        this.executor = Executors.newCachedThreadPool(r -> {
+            var thread = new Thread(r, "KM200 Http");
+            thread.setDaemon(true);
+            return thread;
+        });
 
         this.client = newBuilder() //
                 .connectTimeout(timeout) //
                 .cookieHandler(new CookieManager()) //
                 .followRedirects(ALWAYS) //
+                .executor(executor) //
+                .version(HTTP_1_1) //
                 .build();
     }
 
     @Override
-    public Response send(Request request) throws IOException, InterruptedException, KM200Exception {
+    public Response exchange(Request request) throws IOException, InterruptedException, KM200Exception {
         var httpRequest = httpRequest(request);
-        var response = client.send(httpRequest, BodyHandlers.ofByteArray());
-        var status = response.statusCode();
+        var response = send(httpRequest);
+        return assertHttpOk(request, response);
+    }
 
-        if (status >= 200 && status <= 299) {
-            return new Response(status, response.body());
+    private Response send(HttpRequest request) throws IOException, InterruptedException {
+        var response = client.send(request, BodyHandlers.ofByteArray());
+        return new Response(response.statusCode(), response.body());
+    }
 
-        } else {
-            throw switch (status) {
-            case 400 -> new KM200Exception.BadRequest("Bad request to " + request.path());
-            case 403 -> new KM200Exception.Forbidden(request.path() + " is forbidden");
-            case 404 -> new KM200Exception.NotFound(request.path() + " was not found");
-            case 423 -> new KM200Exception.Locked(request.path() + " was locked");
-            case 500 -> new KM200Exception.ServerError(request.path() + " resulted in a server error");
-            default -> new KM200Exception(request.path() + " failed with response code " + status);
-            };
+    private Response send2(HttpRequest request) throws IOException, InterruptedException {
+        try {
+            /*
+             * It appears that the JDK's http client has a bug which causes it
+             * to block infinitely. This is the async workaround with the hard
+             * timeout of CompletableFuture.get().
+             * 
+             * https://bugs.openjdk.org/browse/JDK-8258397
+             * https://bugs.openjdk.org/browse/JDK-8208693
+             * https://bugs.openjdk.org/browse/JDK-8254223
+             */
+            return client //
+                    .sendAsync(request, BodyHandlers.ofByteArray()) //
+                    .thenApply(it -> new Response(it.statusCode(), it.body())) //
+                    .get(hardTimeout.toMillis(), MILLISECONDS);
+
+        } catch (TimeoutException e) {
+            throw new HttpTimeoutException(request.uri() + " timed out: " + e.getMessage());
+
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof IOException cause) {
+                throw cause;
+
+            } else if (e.getCause() instanceof InterruptedException cause) {
+                throw cause;
+
+            } else if (e.getCause() instanceof KM200Exception cause) {
+                throw cause;
+
+            } else {
+                throw new KM200Exception("Unexpected error for " + request.uri(), e);
+            }
         }
     }
 
@@ -74,4 +118,12 @@ public final class JdkHttp extends Http {
 
         return builder.build();
     }
+
+    /*
+     * @Override public void close() throws Exception { executor.shutdown(); if
+     * (executor.awaitTermination(timeout.toMillis(), MILLISECONDS)) { return; }
+     * executor.shutdownNow(); if
+     * (!executor.awaitTermination(timeout.toMillis(), MILLISECONDS)) { throw
+     * new IOException("Couldn't shutdown executor"); } }
+     */
 }
