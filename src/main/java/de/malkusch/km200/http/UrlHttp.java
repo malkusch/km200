@@ -2,6 +2,7 @@ package de.malkusch.km200.http;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
 import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.net.http.HttpClient;
@@ -34,19 +35,8 @@ public final class UrlHttp extends Http {
 
     @Override
     protected Response exchange(Request request) throws IOException, InterruptedException, KM200Exception {
-        var connection = (HttpURLConnection) new URL(uri + request.path()).openConnection();
-        connection.setConnectTimeout(timeoutMillis);
-        connection.setReadTimeout(timeoutMillis);
-        connection.setRequestProperty("User-Agent", userAgent);
-
-        if (request instanceof Post) {
-            connection.setDoOutput(true);
-            connection.setRequestProperty("Accept", "application/json");
-        }
-
+        var connection = connect(request);
         try {
-            connection.connect();
-
             if (request instanceof Post post) {
                 try (var output = connection.getOutputStream()) {
                     output.write(post.body());
@@ -71,6 +61,27 @@ public final class UrlHttp extends Http {
 
         } finally {
             connection.disconnect();
+        }
+    }
+
+    private HttpURLConnection connect(Request request) throws IOException {
+        try {
+            var connection = (HttpURLConnection) new URL(uri + request.path()).openConnection();
+            connection.setConnectTimeout(timeoutMillis);
+            connection.setReadTimeout(timeoutMillis);
+            connection.setRequestProperty("User-Agent", userAgent);
+
+            if (request instanceof Post) {
+                connection.setDoOutput(true);
+                connection.setRequestProperty("Accept", "application/json");
+            }
+
+            connection.connect();
+
+            return connection;
+
+        } catch (MalformedURLException e) {
+            throw new IllegalArgumentException("Invalid path " + request, e);
         }
     }
 }

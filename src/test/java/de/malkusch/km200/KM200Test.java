@@ -161,6 +161,20 @@ public class KM200Test {
     }
 
     @Test
+    public void queryShouldFailOnInvalidUrl() throws Exception {
+        var km200 = new KM200(URI, TIMEOUT, GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
+
+        assertThrows(IllegalArgumentException.class, () -> km200.queryString("/\r\nf"));
+    }
+
+    @Test
+    public void updateShouldFailOnInvalidUrl() throws Exception {
+        var km200 = new KM200(URI, TIMEOUT, GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
+
+        assertThrows(IllegalArgumentException.class, () -> km200.update("/\r\nf", 42));
+    }
+
+    @Test
     public void queryShouldFailOnNonExistingPath() throws Exception {
         stubFor(get("/non-existing").willReturn(notFound()));
         var km200 = new KM200(URI, TIMEOUT, GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT);
