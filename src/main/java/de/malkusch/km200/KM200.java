@@ -4,6 +4,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.net.URI;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -109,7 +110,7 @@ public final class KM200 {
     public KM200(String uri, int retries, Duration timeout, String gatewayPassword, String privatePassword, String salt)
             throws KM200Exception, IOException, InterruptedException {
 
-        assertNotBlank(uri, "uri must not be blank");
+        assertHttpUri(uri);
         requireNonNull(timeout);
         assertNotBlank(gatewayPassword, "gatewayPassword must not be blank");
         assertNotBlank(privatePassword, "privatePassword must not be blank");
@@ -142,7 +143,11 @@ public final class KM200 {
             updateHttp = new RetryHttp(http, retries, ServerError.class);
         }
 
-        query("/system");
+        try {
+            query("/system");
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Wrong uri " + uri, e);
+        }
     }
 
     private final KM200Endpoint.Factory endpointFactory = new KM200Endpoint.Factory(this, mapper);
@@ -255,6 +260,16 @@ public final class KM200 {
     private static void assertNotBlank(String var, String message) {
         if (requireNonNull(var).isBlank()) {
             throw new IllegalArgumentException(message);
+        }
+    }
+
+    private static void assertHttpUri(String var) {
+        assertNotBlank(var, "Wrong uri " + var);
+        var uri = URI.create(var);
+
+        var scheme = uri.getScheme();
+        if (scheme == null || !(scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"))) {
+            throw new IllegalArgumentException("Wrong uri " + var);
         }
     }
 

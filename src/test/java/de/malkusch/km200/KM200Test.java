@@ -57,6 +57,15 @@ public class KM200Test {
     }
 
     @ParameterizedTest
+    @ValueSource(strings = { "", "invalid", "http/invalid", "http://", "ftp://test",
+            "http://km200-wrong-asdfsdfsdf-sdfds.invalid", "http://example.org", "http://192.88.99.1" })
+    public void constructShouldFailOnInvalidUrl(String uri) throws Exception {
+
+        assertThrows(IllegalArgumentException.class,
+                () -> new KM200(uri, TIMEOUT, GATEWAY_PASSWORD, PRIVATE_PASSWORD, SALT), "Wrong uri " + uri);
+    }
+
+    @ParameterizedTest
     @ValueSource(ints = { 200, 201, 204, 299 })
     public void updateShouldSucceedWith2xx(int status) throws Exception {
         stubFor(post("/update").willReturn(status(status)));
