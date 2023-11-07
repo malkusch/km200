@@ -5,7 +5,6 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.SocketTimeoutException;
 import java.net.URL;
-import java.net.http.HttpClient;
 import java.net.http.HttpTimeoutException;
 import java.time.Duration;
 
@@ -20,8 +19,6 @@ public final class UrlHttp extends Http {
 
     /**
      * Avoid undesired POST retries from UrlConnection
-     * 
-     * {@link HttpClient}
      */
     static {
         System.setProperty("sun.net.http.retryPost", "false");
