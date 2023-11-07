@@ -1,5 +1,7 @@
 package de.malkusch.km200.http;
 
+import static de.malkusch.km200.http.Http.Response.successfullResponse;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -52,8 +54,7 @@ public final class UrlHttp extends Http {
             };
             try (input) {
                 var body = input.readAllBytes();
-                var response = new Response(status, body);
-                return assertHttpOk(request, response);
+                return successfullResponse(request, status, body);
             }
 
         } catch (SocketTimeoutException e) {

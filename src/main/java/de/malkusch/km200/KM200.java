@@ -128,8 +128,6 @@ public final class KM200 {
         this.comm = new KM200Comm();
 
         {
-            // Http http = new JdkHttp(uri.replaceAll("/*$", ""), USER_AGENT,
-            // timeout);
             Http http = new UrlHttp(uri.replaceAll("/*$", ""), USER_AGENT, timeout);
 
             /*
