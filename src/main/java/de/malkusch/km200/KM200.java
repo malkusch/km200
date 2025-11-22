@@ -10,15 +10,14 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.stream.Stream;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import de.malkusch.km200.KM200Exception.ServerError;
 import de.malkusch.km200.http.Http;
 import de.malkusch.km200.http.RetryHttp;
 import de.malkusch.km200.http.SerializedHttp;
 import de.malkusch.km200.http.UrlHttp;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * This is an API for Bosch/Buderus/Junkers heaters with a KM200 gateway.
@@ -154,7 +153,7 @@ public final class KM200 {
         return endpointFactory.build();
     }
 
-    private static record UpdateString(String value) {
+    private record UpdateString(String value) {
     }
 
     public void update(String path, String value) throws KM200Exception, IOException, InterruptedException {
@@ -168,7 +167,7 @@ public final class KM200 {
         update(path, time.format(DATE_TIME_FORMATTER));
     }
 
-    private static record UpdateFloat(BigDecimal value) {
+    private record UpdateFloat(BigDecimal value) {
     }
 
     public void update(String path, int value) throws KM200Exception, IOException, InterruptedException {
@@ -186,7 +185,7 @@ public final class KM200 {
         String json = null;
         try {
             json = mapper.writeValueAsString(update);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new IllegalStateException("Failed to update " + path, e);
         }
         var encrypted = comm.encodeMessage(device, json);
@@ -239,7 +238,7 @@ public final class KM200 {
     private JsonNode queryJson(String path) throws KM200Exception, IOException, InterruptedException {
         try {
             return mapper.readTree(query(path));
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new KM200Exception("Could not parse JSON from query " + path, e);
         }
     }

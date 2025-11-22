@@ -7,10 +7,9 @@ import java.io.IOException;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import de.malkusch.km200.KM200Exception.Forbidden;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 public abstract sealed class KM200Endpoint {
     private final String path;
