@@ -9,9 +9,9 @@ Bosch, Junkers, Buderus, Nefit, Sieger, Tata, Dakon, Elm, Boulter, Vulcano, Worc
 This package is available in Maven central:
 ```xml maven
 <dependency>
-    <groupId>de.malkusch.km200</groupId>
-    <artifactId>km200</artifactId>
-    <version>3.0.3</version>
+  <groupId>de.malkusch.km200</groupId>
+  <artifactId>km200</artifactId>
+  <version>3.0.4</version>
 </dependency>
 ```
 
